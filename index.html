@@ -218,6 +218,7 @@ for(let i=0;i<8;i++){const snowy=i>=4;const c=mk(90,70),g=c.getContext('2d');con
 const S={phase:'title',map:false,seen:{},
   glade:{talked:false,petals:[false,false,false,false,false],mush:[false,false,false,false,false,false],complete:false,gate:0},
   pines:{talked:false,got:[false,false,false,false],hung:[false,false,false,false],complete:false,open:0,echoDone:false,shrine:false,boulders:null,caught:0},
+  burrow:{dug:[false,false],got:false},icecave:{lit:[false,false,false,false],got:false},geode:{keys:[false,false,false],used:[false,false,false],got:false},
   hollow:{talked:false,got:[false,false,false,false],placed:[false,false,false,false],complete:false,open:0,mirror:[0,0,0,0,0,0,0,0],mirrorDone:false,pads:null,padsDone:false,bridge:false}};
 const F={x:0,y:0,vx:0,vy:0,face:1,phase:0,moving:false,sprint:false,stam:1,tired:false,r:14,blink:3,lock:false,sleep:true,slide:null,onIce:false,alpha:1,hidden:false,scale:1};
 const INP={x:0,y:0};
@@ -618,7 +619,7 @@ function buildGlade(){
     if(inPondRaw(x,y))return true;
     {const dx=(x-POND.x)/(POND.rx+70),dy=(y-POND.y)/(POND.ry+70);if(dx*dx+dy*dy<pondR(Math.atan2(dy,dx))**2)return true}
     if(dist(x,y,THICK.x,THICK.y)<THICK.r+30)return true;
-    if(dist(x,y,SPAWN.x,SPAWN.y)<120)return true;
+    if(dist(x,y,SPAWN.x,SPAWN.y)<120||dist(x,y,DIG.x,DIG.y)<170)return true;
     if(dist(x,y,GATE.x,GATE.y)<170)return true;
     if(x>GATE.x-60&&Math.abs(y-GATE.y)<140)return true;
     if(x>GATE.x-260&&x<GATE.x+60&&y>GATE.y-160&&y<GATE.y+400)return true;
@@ -633,6 +634,7 @@ function buildGlade(){
   const MONO=[];for(let i=0;i<7;i++){const a=i/7*Math.PI*2-Math.PI/2+.2;const o={type:'mono',x:STONES.x+Math.cos(a)*STONES.r,y:STONES.y+Math.sin(a)*STONES.r*.8,r:24,h:R(70,100),ph:i};MONO.push(o);sortables.push(o);cols.add(o)}
   const MUSH=[];const MCOL=['#ff8fd0','#7fd8ff','#b48aff','#ff7a4a','#7cf0a0','#ffe066'];
   {const o={type:'riddle',x:RIDDLE.x,y:RIDDLE.y,r:20};sortables.push(o);cols.add(o)}
+  sortables.push({type:'digspot',x:DIG.x,y:DIG.y});
   for(let i=0;i<6;i++){const a=i/6*Math.PI*2+.26;const o={type:'mush',x:RING.x+Math.cos(a)*RING.r,y:RING.y+Math.sin(a)*RING.r*.85,i,col:MCOL[i],lit:false,glow:0};MUSH.push(o);sortables.push(o)}
   const oakObj={type:'oak',x:OAK.x,y:OAK.y,r:62,a:1};sortables.push(oakObj);cols.add(oakObj);
   const pedObj={type:'ped',x:PED.x,y:PED.y,r:28};sortables.push(pedObj);cols.add(pedObj);
@@ -699,7 +701,7 @@ function buildGlade(){
    {name:'Starflower Meadow',x:0,y:0,hint:[MEADOW.x,MEADOW.y]}];
   const LANDMARKS=[
    {n:'Great Oak',x:OAK.x,y:OAK.y-40},{n:'Moonlit Pond',x:POND.x,y:POND.y+POND.ry+40},{n:'Mushroom Ring',x:RING.x,y:RING.y+RING.r+40},
-   {n:'Standing Stones',x:STONES.x,y:STONES.y+STONES.r+40},{n:'Bramble Thicket',x:THICK.x,y:THICK.y+THICK.r+30},{n:'Starflower Meadow',x:MEADOW.x,y:MEADOW.y+MEADOW.ry+20},{n:'Bramble Gate',x:GATE.x-120,y:GATE.y-200}];
+   {n:'Standing Stones',x:STONES.x,y:STONES.y+STONES.r+40},{n:'Bramble Thicket',x:THICK.x,y:THICK.y+THICK.r+30},{n:'Starflower Meadow',x:MEADOW.x,y:MEADOW.y+MEADOW.ry+20},{n:'Bramble Gate',x:GATE.x-120,y:GATE.y-200},{n:'Soft Earth',x:DIG.x,y:DIG.y+80}];
   const count=()=>st.petals.filter(Boolean).length;
   const petalReady=i=>i===1?st.mush.every(Boolean):i===2?!!st.stonesDone:true;
   const collect=(i,x,y)=>{st.petals[i]=true;sfx('petal');burst(x,y-20,'rgba(190,240,255,1)',40,200);burst(x,y-20,'rgba(255,255,255,1)',20,120);
@@ -724,7 +726,8 @@ function buildGlade(){
     blocked(x,y){if(st.gate<1&&x>GATE.x-20)return true;return isWater(x,y)},
     onLoad(){if(st.complete)st.bossBeat=true;MUSH.forEach((m,i)=>{m.lit=!!st.mush[i];m.glow=m.lit?1:0});if(st.complete){placed=5;openGateNow()}if(st.petals[4])thief.carry=false},
     onEnter(){},
-    interact(){if(dist(F.x,F.y,RIDDLE.x,RIDDLE.y)<90){dialog('Carved Stone',['Wake us as the rainbow rises:','first the ember, then the sun, then the leaf, the sky and the dusk... and last of all, the rose.']);return}
+    interact(){if(dist(F.x,F.y,DIG.x,DIG.y)<90&&!F.lock){F.lock=true;sfx('thud');let n=0;const iv=setInterval(()=>{burst(DIG.x+R(-24,24),DIG.y-8,'rgba(170,130,100,1)',6,120);if(++n>5){clearInterval(iv);F.lock=false;goArea('burrow',400,1480)}},120);return}
+      if(dist(F.x,F.y,RIDDLE.x,RIDDLE.y)<90){dialog('Carved Stone',['Wake us as the rainbow rises:','first the ember, then the sun, then the leaf, the sky and the dusk... and last of all, the rose.']);return}
       if(!nearOwl())return;const n=count();
       if(st.complete){dialog('Oriel the Elder Owl',['The Moonstone hums happily, Nix. Thank you.','The brambles to the east have parted. The Whispering Pines lie beyond, past the gate.']);return}
       if(n===5){dialog('Oriel the Elder Owl',['All five! Your little paws have done well.','Lay them on the Moonstone just below me, and let us see it wake.']);return}
@@ -734,18 +737,21 @@ function buildGlade(){
         'Five Moonpetals drifted away on the night wind. Bring them home, and the stone will wake.',
         'One rests on the isle in the pond, but some of its stepping stones sink. One sleeps in the mushroom ring, and they wake only in the right order. One waits in the standing stones, which test any who enter. One hides deep in the bramble thicket, full of snares and dead ends.',
         'And one... was snatched by a very cheeky rabbit in the starflower meadow. You may need to dash.',
+        'And deep below, the Moonstone\'s roots have knotted. There is soft earth southeast of the meadow where a fox could dig down. Bring me the Heartroot from the burrows.',
         'Thornlings roam the glade. Pounce on them with Space, and pick pink flowers to heal. I have marked the petals on your map. Press M to look.'],()=>{st.talked=true;save();toast('Quest begun: <b>Gather the five Moonpetals</b>')});return}
       const miss=PETALS.map((p,i)=>st.petals[i]?null:p.name).filter(Boolean);
-      dialog('Oriel the Elder Owl',[`You carry ${n} of 5 Moonpetals. I still sense one near the ${miss[0]}.`,'Your map holds my marks. Keep going, little snowflake.'])},
-    prompt(){if(dist(F.x,F.y,RIDDLE.x,RIDDLE.y)<90)return'to read the carved stone';return nearOwl()?'to talk to Oriel':null},
+      if(!miss.length&&!st.underDone){dialog('Oriel the Elder Owl',['All five petals! But the Moonstone\'s roots are still knotted.','Dig down at the soft earth southeast of the meadow and bring back the Heartroot.']);return}
+      dialog('Oriel the Elder Owl',[miss.length?`You carry ${n} of 5 Moonpetals. I still sense one near the ${miss[0]}.`:'You have all five petals.',st.underDone?'You have the Heartroot too. Well done!':'Do not forget the Heartroot, deep in the burrows below the soft earth.'])},
+    prompt(){if(dist(F.x,F.y,DIG.x,DIG.y)<90)return'to dig down into the burrows';if(dist(F.x,F.y,RIDDLE.x,RIDDLE.y)<90)return'to read the carved stone';return nearOwl()?'to talk to Oriel':null},
     onRespawn(){trial.on=false;trial.wave=0},
     objective(){const n=count();let t;
       if(st.complete)t=st.gate>=1?'The gate is open. Head east into the Whispering Pines.':'The Moonstone is awake!';
-      else if(n===5)t='Return the Moonpetals to the Moonstone at the Great Oak.';
+      else if(n===5&&!st.underDone)t='The Moonstone\'s roots are knotted. Dig at the soft earth southeast of the meadow and find the Heartroot.';
+      else if(n===5)t='Return the Moonpetals and Heartroot to the Moonstone at the Great Oak.';
       else if(st.talked)t=`Gather the lost Moonpetals (${n}/5).`;
       else t=n?`Moonpetals found: ${n}/5. Speak with the owl at the Great Oak.`:'Find the Elder Owl at the Great Oak.';
       return{text:t,n:st.complete?5:n,total:5}},
-    hints(){if(!st.talked)return[];return PETALS.map((p,i)=>({x:p.hint[0],y:p.hint[1],r:150,done:st.petals[i]}))},
+    hints(){if(!st.talked)return[];return PETALS.map((p,i)=>({x:p.hint[0],y:p.hint[1],r:150,done:st.petals[i]})).concat([{x:DIG.x,y:DIG.y,r:150,done:!!st.underDone}])},
     mapIcons(g,P){let[x,y]=P(OAK.x,OAK.y);g.fillStyle=st.complete?'#bdf1ff':'#ffc9e6';g.beginPath();g.arc(x,y,5,0,7);g.fill();[x,y]=P(GATE.x,GATE.y);g.fillStyle=st.gate>=1?'#ffd79a':'#8a5a9a';g.beginPath();g.arc(x,y,5,0,7);g.fill()},
     mapNote(){return st.gate>=1?'East: Whispering Pines (open)':'East: sealed by brambles'},
     camTarget(){if(SEQ.on)return{x:PED.x,y:PED.y-60};if(CINE.on&&CINE.t<4.4)return{x:GATE.x-80,y:GATE.y,slow:true};return null},
@@ -772,7 +778,8 @@ function buildGlade(){
       if(dist(F.x,F.y,1090,1950)<160)once('thick','The Bramble Thicket. Watch for snapping thorn snares, and not every trail goes anywhere.',4.5);
       if(inMeadow(F.x,F.y,1.25)&&!st.petals[4])once('meadow','That rabbit has a Moonpetal! It dives into burrows when you get close. Corner it in the open.',4.5);
       if(dist(F.x,F.y,GATE.x,GATE.y)<330&&!st.complete)once('gate','A wall of thorny brambles blocks the way east. Maybe the Moonstone can open it.');
-      if(count()===5&&!st.bossBeat&&!BOSS&&!DLG.on&&!F.lock&&dist(F.x,F.y,PED.x,PED.y)<170){dialog('Oriel the Elder Owl',['Wait! Nix, something stirs beneath the roots...','The Thorn Warden! It has fed on the Moonstone\'s darkness for too long. Drive it away!'],()=>startBoss({name:'The Thorn Warden',hp:16,r:46,speed:72,x:1800,y:1760,ax:1800,ay:1620,ar:430,attacks:['charge','spikes','summon','ring'],minion:'thorn',ringN:10,pc:'rgba(255,120,210,1)',proj:'thorn',spike:'thorn',draw:drawWarden,onWin:()=>{st.bossBeat=true;save();toast('The Thorn Warden withers away! Now, to the Moonstone.',3.6)}}))}
+      if(count()===5&&!st.underDone&&!st.complete&&dist(F.x,F.y,PED.x,PED.y)<170)once('needRoot','The Moonstone stays dark... its roots are knotted. Find the <b>Heartroot</b> underground (dig at the soft earth southeast of the meadow).',5);
+      if(count()===5&&(st.underDone||st.complete)&&!st.bossBeat&&!BOSS&&!DLG.on&&!F.lock&&dist(F.x,F.y,PED.x,PED.y)<170){dialog('Oriel the Elder Owl',['Wait! Nix, something stirs beneath the roots...','The Thorn Warden! It has fed on the Moonstone\'s darkness for too long. Drive it away!'],()=>startBoss({name:'The Thorn Warden',hp:16,r:46,speed:72,x:1800,y:1760,ax:1800,ay:1620,ar:430,attacks:['charge','spikes','summon','ring'],minion:'thorn',ringN:10,pc:'rgba(255,120,210,1)',proj:'thorn',spike:'thorn',draw:drawWarden,onWin:()=>{st.bossBeat=true;save();toast('The Thorn Warden withers away! Now, to the Moonstone.',3.6)}}))}
       if(count()===5&&st.bossBeat&&!BOSS&&!st.complete&&!SEQ.on&&dist(F.x,F.y,PED.x,PED.y)<130&&!DLG.on){SEQ.on=true;SEQ.t=0;F.lock=true;SEQ.orbs=[0,1,2,3,4].map(i=>({i,t0:i*.5,done:false}));toast('The Moonpetals drift toward the stone...',3)}
       if(SEQ.on){SEQ.t+=dt;for(const o of SEQ.orbs){if(!o.done&&SEQ.t>o.t0+.9){o.done=true;placed=o.i+1;sfx('place',o.i);const sp=socketPos(o.i);burst(sp.x,sp.y,'rgba(190,240,255,1)',12,80)}}
         if(SEQ.t>3.4&&!st.complete){st.complete=true;flash=1;sfx('win');burst(PED.x,PED.y-60,'rgba(255,255,255,1)',80,320);burst(PED.x,PED.y-60,'rgba(255,200,240,1)',50,220);save()}
@@ -797,6 +804,9 @@ function buildGlade(){
         for(const[lx,ly,ph]of LANTS){const sx=o.x+lx+Math.sin(T*1.1+ph)*3,sy=o.y+ly;g.strokeStyle='rgba(60,40,70,.8)';g.lineWidth=1;g.beginPath();g.moveTo(sx,sy-30);g.lineTo(sx,sy-6);g.stroke();g.fillStyle='#ffd79a';g.beginPath();g.ellipse(sx,sy,5,7,0,0,7);g.fill()}break}
       case'ped':drawPed(g);break;case'mono':drawMono(g,o);break;case'mush':drawMush(g,o);break;
       case'petal':drawPetal(g,o);break;case'gate':drawGate(g);break;case'bramble':drawBramble(g,o);break;
+      case'digspot':{g.fillStyle='rgba(16,8,36,.35)';g.beginPath();g.ellipse(o.x,o.y+4,48,14,0,0,7);g.fill();const gg=g.createRadialGradient(o.x-8,o.y-12,4,o.x,o.y-6,46);gg.addColorStop(0,'#a07a62');gg.addColorStop(1,'#5a3a36');g.fillStyle=gg;g.beginPath();g.ellipse(o.x,o.y-6,44,22,0,0,7);g.fill();
+        g.strokeStyle='#c09a7a';g.lineWidth=3;g.lineCap='round';for(let k=0;k<4;k++){const a=k*1.6+.3;g.beginPath();g.moveTo(o.x+Math.cos(a)*14,o.y-10);g.quadraticCurveTo(o.x+Math.cos(a)*30,o.y-24,o.x+Math.cos(a)*40,o.y-14);g.stroke()}
+        g.fillStyle=`rgba(255,220,180,${.5+.4*Math.sin(T*3)})`;for(let k=0;k<5;k++){g.beginPath();g.arc(o.x+Math.cos(T+k*1.3)*26,o.y-12+Math.sin(T*1.4+k)*8,2,0,7);g.fill()}break}
       case'riddle':g.fillStyle='rgba(16,8,36,.35)';g.beginPath();g.ellipse(o.x,o.y,26,8,0,0,7);g.fill();g.fillStyle='#8a86b0';g.beginPath();g.moveTo(o.x-22,o.y);g.lineTo(o.x-18,o.y-46);g.quadraticCurveTo(o.x,o.y-58,o.x+18,o.y-46);g.lineTo(o.x+22,o.y);g.fill();g.strokeStyle='rgba(255,220,170,.8)';g.lineWidth=1.5;for(let k=0;k<4;k++){g.beginPath();g.moveTo(o.x-12,o.y-38+k*8);g.lineTo(o.x+12,o.y-38+k*8);g.stroke()}break;
       case'sign':if(st.gate>0){g.globalAlpha=st.gate;drawSign(g,o.x,o.y,'Whispering Pines →');g.globalAlpha=1}break}},
     drawTop(g){if(SEQ.on){for(const ob of SEQ.orbs){const k=clamp((SEQ.t-ob.t0)/.9,0,1);if(k<=0||ob.done)continue;const sp=socketPos(ob.i);const e=k*k*(3-2*k);drawPetalShape(g,lerp(F.x,sp.x,e),lerp(F.y-30,sp.y,e)-Math.sin(e*Math.PI)*60,8,T*4)}}},
@@ -808,6 +818,7 @@ function buildGlade(){
       for(const m of MUSH)light(m.x,m.y-36,60+120*m.glow,glowRGBA(m.col),.25+.55*m.glow);
       for(const m of MONO)light(m.x,m.y-m.h*.5,70,G_CYAN,st.petals[2]?.45:.15);
       if(st.gate>0)light(GATE.x+40,GATE.y,320,G_WARM,.6*st.gate);
+      light(DIG.x,DIG.y-10,140,'rgba(255,200,150,1)',.5);
       light(POND.x+80,POND.y-90,260,G_VIO,.3);
       for(let i=6;i<TPATH.length*.35;i+=12){const q=TPATH[i];light(q[0],q[1]-10,90,G_CYAN,.3+.15*Math.sin(T*2+i))}
       for(const sn of SNARES)if(snareOn(sn)||snareWarn(sn))light(sn.x,sn.y,70,G_PINK,.4)},
@@ -914,6 +925,7 @@ function buildPines(){
     if(inRect(x,y,LX-90,LY-90,LX1+90,LY1+250))return true;
     if(dist(x,y,CAMP.x,CAMP.y)<CAMP.r)return true;
     if(x<300&&Math.abs(y-1400)<140)return true;
+    if(dist(x,y,HOLLOWTREE.x,HOLLOWTREE.y)<180)return true;
     if(Math.abs(x-1620)<170&&y<340)return true;
     for(const p of PATHS)if(polyDist(x,y,p)<80)return true;
     return false};
@@ -928,6 +940,7 @@ function buildPines(){
   const stagObj={type:'stag',x:STAG.x,y:STAG.y,r:30};sortables.push(stagObj);cols.add(stagObj);
   sortables.push({type:'sign',x:240,y:1320,text:'← Moonpetal Glade'});
   sortables.push({type:'nsign',x:1720,y:170});
+  {const o={type:'hollowtree',x:HOLLOWTREE.x,y:HOLLOWTREE.y,r:40};sortables.push(o);cols.add(o)}
 
   /* echo stones */
   const pylons=[];for(const a of[.785,2.356,3.927,5.498]){const o={type:'pylon',x:ECHO.x+Math.cos(a)*165,y:ECHO.y+Math.sin(a)*150,r:16,ph:a};pylons.push(o);sortables.push(o);cols.add(o)}
@@ -1039,7 +1052,7 @@ function buildPines(){
   const fireflies=makeFireflies(120,[{p:.2,x:ECHO.x,y:ECHO.y,r:400},{p:.2,x:2600,y:2100,r:500},{p:.15,x:HUB.x,y:HUB.y,r:500}],W,H);
   const mists=makeMists(30,W,H);
   const rabbits=[];[[900,1100],[2300,1500],[1300,2200],[2900,1700],[600,700]].forEach(p=>{const r=makeRabbit(p[0],p[1],{col:pick(['#f4f6ff','#e8ecf8','#dfe4f2'])});rabbits.push(r);sortables.push(r)});
-  const LANDMARKS=[{n:'Great Pine',x:HUB.x,y:HUB.y+70},{n:'Echo Stones',x:ECHO.x,y:ECHO.y+300},{n:'Ruined Shrine',x:(SX+SHX1)/2,y:SHY1+90},{n:'Frostglass Lake',x:(LX+LX1)/2,y:LY1+70},{n:'Old Logging Camp',x:CAMP.x,y:CAMP.y+CAMP.r-10},{n:'Misty Pass',x:1620,y:300},{n:'To Moonpetal Glade',x:290,y:1300}];
+  const LANDMARKS=[{n:'Great Pine',x:HUB.x,y:HUB.y+70},{n:'Echo Stones',x:ECHO.x,y:ECHO.y+300},{n:'Ruined Shrine',x:(SX+SHX1)/2,y:SHY1+90},{n:'Frostglass Lake',x:(LX+LX1)/2,y:LY1+70},{n:'Old Logging Camp',x:CAMP.x,y:CAMP.y+CAMP.r-10},{n:'Misty Pass',x:1620,y:300},{n:'Hollow Tree',x:HOLLOWTREE.x,y:HOLLOWTREE.y+80},{n:'To Moonpetal Glade',x:290,y:1300}];
   const nHung=()=>st.hung.filter(Boolean).length,nCarry=()=>st.got.filter((g,i)=>g&&!st.hung[i]).length;
   const nearStag=()=>dist(F.x,F.y,STAG.x,STAG.y)<170||dist(F.x,F.y,HUB.x,HUB.y)<230;
   const hangQ=[];const FIN={on:false,t:0},CINE={on:false,t:0};
@@ -1064,7 +1077,8 @@ function buildPines(){
     onEnter(){once('pinesIn','It\'s strangely quiet here... Find the spirit stag beside the <b>Great Pine</b>.',4.5)},
     onKey(k){if(k==='r'&&!st.shrine&&inRect(F.x,F.y,SX-40,SY-40,SHX1+40,SHY1+120))resetShrine()},
     afterLoad(){if(!st.shrine&&inShrine(F.x,F.y)){F.x=SHRINE_OUT.x;F.y=SHRINE_OUT.y}},
-    interact(){if(!st.shrine&&inShrine(F.x,F.y)){resetShrine();return}
+    interact(){if(dist(F.x,F.y,HOLLOWTREE.x,HOLLOWTREE.y+40)<90){goArea('icecave',420,1700);return}
+      if(!st.shrine&&inShrine(F.x,F.y)){resetShrine();return}
       if(!nearStag())return;
       if(st.complete){dialog('Juniper the Spirit Stag',['Do you hear them? The pines are singing again. Thank you, little fox.','The mist on the northern pass has lifted. The Crystal Hollow lies beyond it... when you are ready.']);return}
       if(!st.talked){dialog('Juniper the Spirit Stag',[
@@ -1075,18 +1089,21 @@ function buildPines(){
         'East, an old shrine hides another behind a sealed door. Heavy stones on the right tiles might open it.',
         'Southeast, a lantern rests on an island in Frostglass Lake. Once you step on the ice, you slide until something stops you.',
         'And southwest is Hal the hunter\'s logging camp. Stay out of his lantern light, and hide in the tall ferns.',
+        'And one more thing. The forest\'s voice starts in its roots. A great hollow tree to the northwest leads down into the frozen caves. Bring me the Frostbloom that grows there.',
         'Bring each lantern back and hang it on this Great Pine. I have marked the places on your map.'],()=>{st.talked=true;save();toast('Quest begun: <b>Light the four Spirit Lanterns</b>')});return}
       if(nCarry()){dialog('Juniper the Spirit Stag',['You carry a Spirit Lantern! Come close to the Great Pine and it will find its branch.']);return}
       const miss=[0,1,2,3].filter(i=>!st.got[i]);
+      if(!miss.length){dialog('Juniper the Spirit Stag',st.underDone?['The lanterns and the Frostbloom... you have everything. Stay close to the Great Pine.']:['All four lanterns! But the roots are still frozen silent.','Climb down the hollow tree to the northwest and bring back the Frostbloom.']);return}
       dialog('Juniper the Spirit Stag',[`${nHung()} of 4 lanterns glow on the Great Pine.`,HINT[miss[0]]])},
-    prompt(){if(!st.shrine&&inShrine(F.x,F.y))return'to reset the shrine stones';return nearStag()?'to talk to Juniper':null},
+    prompt(){if(dist(F.x,F.y,HOLLOWTREE.x,HOLLOWTREE.y+40)<90)return'to climb down into the hollow tree';if(!st.shrine&&inShrine(F.x,F.y))return'to reset the shrine stones';return nearStag()?'to talk to Juniper':null},
     objective(){const h=nHung(),c=nCarry();let t;
       if(st.complete)t=st.open>=1?'The pines sing again! Head north through the pass to the Crystal Hollow.':'The pines are singing again!';
       else if(!st.talked&&!h&&!c)t='Find the spirit stag beside the Great Pine.';
       else if(c)t='Hang your Spirit Lantern on the Great Pine.';
+      else if(h===4&&!st.underDone)t='The roots are still silent. Climb down the hollow tree (northwest) and find the Frostbloom.';
       else t=`Light the Spirit Lanterns (${h}/4 hung).`;
       return{text:t,n:st.complete?4:h,half:c,total:4}},
-    hints(){if(!st.talked)return[];return[{x:ECHO.x,y:ECHO.y+40,r:220,done:st.got[0]},{x:(SX+SHX1)/2,y:(SY+SHY1)/2,r:330,done:st.got[1]},{x:GOAL.x,y:GOAL.y,r:300,done:st.got[2]},{x:CAMP.x-40,y:CAMP.y+40,r:360,done:st.got[3]}]},
+    hints(){if(!st.talked)return[];return[{x:ECHO.x,y:ECHO.y+40,r:220,done:st.got[0]},{x:(SX+SHX1)/2,y:(SY+SHY1)/2,r:330,done:st.got[1]},{x:GOAL.x,y:GOAL.y,r:300,done:st.got[2]},{x:CAMP.x-40,y:CAMP.y+40,r:360,done:st.got[3]},{x:HOLLOWTREE.x,y:HOLLOWTREE.y,r:160,done:!!st.underDone}]},
     mapIcons(g,P){let[x,y]=P(HUB.x,HUB.y);g.fillStyle=st.complete?'#bdf1ff':'#c9d6ff';g.beginPath();g.arc(x,y,5,0,7);g.fill();
       for(let i=0;i<4;i++)if(st.hung[i]){g.fillStyle='#bdf1ff';g.beginPath();g.arc(x-9+i*6,y-10,2.2,0,7);g.fill()}
       [x,y]=P(1620,200);g.fillStyle=st.open>=1?'#ffd79a':'#8a8ab0';g.beginPath();g.arc(x,y,5,0,7);g.fill();
@@ -1163,7 +1180,8 @@ function buildPines(){
       if(dist(F.x,F.y,HUB.x,HUB.y)<240&&!F.lock){let k=0;for(let i=0;i<4;i++){if(st.got[i]&&!st.hung[i]&&!hangQ.some(q=>q.i===i)){hangQ.push({i,t:-k*.45});k++}}}
       for(let j=hangQ.length-1;j>=0;j--){const q=hangQ[j];q.t+=dt;if(q.t>=.9){hangQ.splice(j,1);st.hung[q.i]=true;sfx('place',nHung()+1);const h=HOOKS[q.i];burst(HUB.x+h[0],HUB.y+h[1],'rgba(170,235,255,1)',24,140);
         toast(`Spirit Lantern hung on the Great Pine (${nHung()}/4)`,2.8);save()}}
-      if(nHung()===4&&!st.bossBeat&&!BOSS&&!hangQ.length&&!DLG.on&&!F.lock&&dist(F.x,F.y,HUB.x,HUB.y)<300){dialog('Juniper the Spirit Stag',['Wait... the silence is gathering. It has taken a shape!','The Frost Wraith! It stole the forest\'s voice. Show it what a little fox can do!'],()=>startBoss({name:'The Frost Wraith',hp:18,r:44,speed:88,x:HUB.x,y:1740,ax:1700,ay:1610,ar:430,attacks:['ring','charge','spikes','summon'],minion:'sprite',ringN:12,pc:G_ICE,proj:'ice',spike:'ice',draw:drawWraith,onWin:()=>{st.bossBeat=true;save();toast('The Frost Wraith shatters into snowflakes!',3.4)}}))}
+      if(nHung()===4&&!st.underDone&&!st.complete&&dist(F.x,F.y,HUB.x,HUB.y)<300)once('needBloom','The lanterns glow, but the roots below are frozen silent. Find the <b>Frostbloom</b> in the hollow tree to the northwest.',5);
+      if(nHung()===4&&(st.underDone||st.complete)&&!st.bossBeat&&!BOSS&&!hangQ.length&&!DLG.on&&!F.lock&&dist(F.x,F.y,HUB.x,HUB.y)<300){dialog('Juniper the Spirit Stag',['Wait... the silence is gathering. It has taken a shape!','The Frost Wraith! It stole the forest\'s voice. Show it what a little fox can do!'],()=>startBoss({name:'The Frost Wraith',hp:18,r:44,speed:88,x:HUB.x,y:1740,ax:1700,ay:1610,ar:430,attacks:['ring','charge','spikes','summon'],minion:'sprite',ringN:12,pc:G_ICE,proj:'ice',spike:'ice',draw:drawWraith,onWin:()=>{st.bossBeat=true;save();toast('The Frost Wraith shatters into snowflakes!',3.4)}}))}
       if(nHung()===4&&st.bossBeat&&!BOSS&&!st.complete&&!FIN.on&&!hangQ.length&&!DLG.on){FIN.on=true;FIN.t=0;F.lock=true}
       if(FIN.on){FIN.t+=dt;if(FIN.t>.9&&!st.complete){st.complete=true;flash=1;sfx('win');burst(HUB.x,HUB.y-300,'rgba(255,255,255,1)',80,320);burst(HUB.x,HUB.y-300,'rgba(170,235,255,1)',60,260);save()}
         if(FIN.t>2.4){FIN.on=false;dialog('Juniper the Spirit Stag',['Listen... listen! The pines are whispering again!','Their song is strong enough to blow the mist from the northern pass. Beyond it lies the Crystal Hollow, little fox.'],()=>{CINE.on=true;CINE.t=0;sfx('gate');document.body.classList.add('hideui')})}}
@@ -1198,6 +1216,11 @@ function buildPines(){
         HOOKS.forEach((h,i)=>{const sx=o.x+h[0]+Math.sin(T*1.2+i)*2,sy=o.y+h[1];g.strokeStyle='rgba(220,230,255,.5)';g.lineWidth=1;g.beginPath();g.moveTo(sx,sy-36);g.lineTo(sx,sy-18);g.stroke();
           if(st.hung[i])drawLantern(g,sx,sy,1.1,true);else{g.strokeStyle='rgba(200,210,255,.35)';g.beginPath();g.arc(sx,sy-14,5,0,7);g.stroke()}});break}
       case'stag':drawStag(g,o.x,o.y);break;
+      case'hollowtree':{const x=o.x,y=o.y;g.fillStyle='rgba(8,6,24,.45)';g.beginPath();g.ellipse(x,y+6,90,22,0,0,7);g.fill();const tg=g.createLinearGradient(x-80,0,x+80,0);tg.addColorStop(0,'#5a4a6a');tg.addColorStop(.5,'#3e3050');tg.addColorStop(1,'#241a34');g.fillStyle=tg;
+        g.beginPath();g.moveTo(x-80,y);g.quadraticCurveTo(x-70,y-110,x-50,y-150);g.lineTo(x-30,y-130);g.lineTo(x-10,y-160);g.lineTo(x+14,y-128);g.lineTo(x+40,y-150);g.quadraticCurveTo(x+70,y-110,x+80,y);g.closePath();g.fill();
+        g.fillStyle='rgba(235,242,255,.85)';g.beginPath();g.ellipse(x-30,y-138,24,7,-.3,0,7);g.ellipse(x+30,y-140,20,6,.3,0,7);g.fill();
+        g.fillStyle='#0c0818';g.beginPath();g.ellipse(x,y-36,34,40,0,0,7);g.fill();g.fillStyle=`rgba(150,215,255,${.25+.15*Math.sin(T*2)})`;g.beginPath();g.ellipse(x,y-28,24,28,0,0,7);g.fill();
+        g.strokeStyle='#4a3a5a';g.lineWidth=10;g.lineCap='round';for(const s of[-1,1]){g.beginPath();g.moveTo(x+s*60,y-6);g.quadraticCurveTo(x+s*100,y,x+s*120,y+14);g.stroke()}break}
       case'pylon':drawPylon(g,o);break;
       case'wall':drawWall(g,o);break;case'door':drawDoor(g,o);break;case'boulder':drawBoulder(g,o);break;
       case'lantern':{const i=o.i;if(!lanVisible(i))break;const fy=o.y-30+Math.sin(T*2+i)*4-(i===3?22:0);g.fillStyle='rgba(120,200,255,.2)';g.beginPath();g.ellipse(o.x,o.y,14,5,0,0,7);g.fill();drawLantern(g,o.x,fy,1.25,true);break}
@@ -1217,7 +1240,7 @@ function buildPines(){
     lights(light){
       light(HUB.x,HUB.y-330,600,G_ICE,.22+.3*(st.complete?1:0));
       HOOKS.forEach((h,i)=>{if(st.hung[i])light(HUB.x+h[0],HUB.y+h[1],170,G_CYAN,.8)});
-      light(STAG.x-20,STAG.y-120,200,G_CYAN,.55);
+      light(STAG.x-20,STAG.y-120,200,G_CYAN,.55);light(HOLLOWTREE.x,HOLLOWTREE.y-30,170,G_ICE,.55);
       ESTONES.forEach((s,i)=>{const l=st.echoDone?.6:E.lit[i];light(s.x,s.y,90+90*l,glowRGBA(s.c),.25+.6*l)});
       for(const p of pylons)light(p.x,p.y-50,110,G_ICE,st.echoDone?.6:.25);
       for(const p of plates)light(p.x,p.y,90,G_CYAN,.15+.55*p.on);
@@ -1391,6 +1414,7 @@ function buildHollow(){
     if(inRect(x,y,CH.x0-110,CH.y0-110,CH.x1+110,CH.y1+260))return true;
     if(inRect(x,y,DX-70,DY-70,MDX1+70,MDY1+240))return true;
     if(Math.abs(x-1700)<180&&(y<330||y>H-260))return true;
+    if(dist(x,y,CAVEMOUTH.x,CAVEMOUTH.y)<190)return true;
     for(const p of PATHS)if(polyDist(x,y,p)<80)return true;
     return false};
   const addTree=(x,y,s)=>{const sp=pick(hollowSprites);const t={type:'tree',x,y,s,sp,a:1,r:17*s,pal:sp.pal};trees.push(t);sortables.push(t);cols.add(t)};
@@ -1404,6 +1428,7 @@ function buildHollow(){
   const SOCK=[[-70,-92],[70,-92],[-44,-178],[44,-178]];
   sortables.push({type:'sign',x:1820,y:2640,text:'↓ Whispering Pines'});
   sortables.push({type:'nsign',x:1840,y:180});
+  {const o={type:'cavemouth',x:CAVEMOUTH.x,y:CAVEMOUTH.y,r:0};sortables.push(o);for(const dx of[-70,-40,40,70])cols.add({x:CAVEMOUTH.x+dx,y:CAVEMOUTH.y-10,r:26})}
   const gateCols=[];for(let x=1480;x<=1920;x+=40)gateCols.push(cols.add({x,y:215,r:30}));
   const gateShards=[];for(let i=0;i<12;i++)gateShards.push({type:'gshard',x:1490+i*38+R(-8,8),y:220+R(-8,8),h:R(60,110),t:R(-.2,.2),p:i%4});gateShards.forEach(o=>sortables.push(o));
 
@@ -1510,7 +1535,7 @@ function buildHollow(){
 
   const fireflies=makeFireflies(130,[{p:.2,x:HEART.x,y:HEART.y,r:500},{p:.2,x:(CH.x0+CH.x1)/2,y:(CH.y0+CH.y1)/2,r:400},{p:.15,x:PADC.x,y:PADC.y,r:400}],W,H);
   const mists=makeMists(24,W,H);
-  const LANDMARKS=[{n:'Heart Crystal',x:HEART.x,y:HEART.y+80},{n:'Mirror Gallery',x:MX+360,y:MY+7*MC+70},{n:'Glimmer Pads',x:PADC.x,y:PADC.y+290},{n:'Starfall Chasm',x:(CH.x0+CH.x1)/2,y:CH.y1+70},{n:'Dark Warren',x:(DX+MDX1)/2,y:MDY1+60},{n:'Crystal Wall',x:1700,y:330},{n:'To Whispering Pines',x:1700,y:2560}];
+  const LANDMARKS=[{n:'Heart Crystal',x:HEART.x,y:HEART.y+80},{n:'Mirror Gallery',x:MX+360,y:MY+7*MC+70},{n:'Glimmer Pads',x:PADC.x,y:PADC.y+290},{n:'Starfall Chasm',x:(CH.x0+CH.x1)/2,y:CH.y1+70},{n:'Dark Warren',x:(DX+MDX1)/2,y:MDY1+60},{n:'Crystal Wall',x:1700,y:330},{n:'Cave Mouth',x:CAVEMOUTH.x,y:CAVEMOUTH.y+80},{n:'To Whispering Pines',x:1700,y:2560}];
   const nPlaced=()=>st.placed.filter(Boolean).length,nCarry=()=>st.got.filter((g,i)=>g&&!st.placed[i]).length;
   const nearMole=()=>dist(F.x,F.y,MOLE.x,MOLE.y)<150;
   const nearMirror=()=>{if(st.mirrorDone)return null;let best=null,bd=64;for(const m of mirrors){const d=dist(F.x,F.y,m.x,m.y);if(d<bd){bd=d;best=m}}return best};
@@ -1538,6 +1563,7 @@ function buildHollow(){
     onEnter(){once('hollowIn','The Crystal Hollow. Everything glitters... Find the old mole by the <b>Heart Crystal</b>.',4.5)},
     onKey(k){if(k==='r'&&!st.padsDone&&dist(F.x,F.y,PADC.x,PADC.y)<330){st.pads=padStart();sfx('door');toast('The pads reset to their starting pattern.',2.4)}},
     interact(){
+      if(dist(F.x,F.y,CAVEMOUTH.x,CAVEMOUTH.y+20)<80){goArea('geode',1300,1740);return}
       const m=nearMirror();if(m){st.mirror[m.i]=st.mirror[m.i]?0:1;sfx('echo',m.i%4);save();return}
       if(!nearMole())return;
       if(st.complete){dialog('Old Burrow the Mole',['Look at her shine! The Heart Crystal is whole again, thanks to you.','The crystal wall to the north has melted away. Past it, they say, lie the Sunlit Falls.']);return}
@@ -1550,17 +1576,19 @@ function buildHollow(){
         'East, a shard sits on an island in the Starfall Chasm. Ride the floating crystals across. Careful, the circling ones blink out now and then!',
         'And southwest is the Dark Warren, a maze too dark for my old eyes. Lumi the moth can start you off, but bats roost in there and she scares easily.',
         'And watch out for crystal crawlers. You cannot hurt them from the front. Make them charge into something hard, then pounce!',
+        'One more thing: the Heart needs light from deep below. A cave mouth in the far southeast leads to the Geode Depths. Fetch the Starlight Geode, but the old tunnels are unstable!',
         'Bring the shards back to the Heart. I have marked the spots on your map.'],()=>{st.talked=true;save();toast('Quest begun: <b>Mend the Heart Crystal</b>')});return}
       if(nCarry()){dialog('Old Burrow the Mole',['You found a shard! Walk up to the Heart Crystal and it will pull the shard into place.']);return}
-      const miss=[0,1,2,3].filter(i=>!st.got[i]);dialog('Old Burrow the Mole',[`${nPlaced()} of 4 shards are back in the Heart.`,HINT[miss[0]]])},
-    prompt(){if(nearMirror())return'to turn the mirror';return nearMole()?'to talk to Old Burrow':null},
+      const miss=[0,1,2,3].filter(i=>!st.got[i]);if(!miss.length){dialog('Old Burrow the Mole',st.underDone?['Shards and the Starlight Geode! Stand by the Heart, young fox.']:['All four shards! Now the Heart needs the Starlight Geode.','The cave mouth is in the far southeast. Grab the geode and run, those tunnels are crumbling.']);return}dialog('Old Burrow the Mole',[`${nPlaced()} of 4 shards are back in the Heart.`,HINT[miss[0]]])},
+    prompt(){if(dist(F.x,F.y,CAVEMOUTH.x,CAVEMOUTH.y+20)<80)return'to enter the cave';if(nearMirror())return'to turn the mirror';return nearMole()?'to talk to Old Burrow':null},
     objective(){const h=nPlaced(),c=nCarry();let t;
       if(st.complete)t=st.open>=1?'The Heart Crystal shines! The way north opens to the Sunlit Falls (coming soon).':'The Heart Crystal shines again!';
       else if(!st.talked&&!h&&!c)t='Find the old mole beside the Heart Crystal.';
       else if(c)t='Bring your Prism Shard to the Heart Crystal.';
+      else if(h===4&&!st.underDone)t='The Heart needs the Starlight Geode. Enter the cave mouth in the far southeast.';
       else t=`Mend the Heart Crystal (${h}/4 shards).`;
       return{text:t,n:st.complete?4:h,half:c,total:4}},
-    hints(){if(!st.talked)return[];return[{x:MX+360,y:MY+280,r:340,done:st.got[0]},{x:PADC.x,y:PADC.y,r:280,done:st.got[1]},{x:ISL.x,y:ISL.y,r:320,done:st.got[2]},{x:(DX+MDX1)/2,y:(DY+MDY1)/2,r:440,done:st.got[3]}]},
+    hints(){if(!st.talked)return[];return[{x:MX+360,y:MY+280,r:340,done:st.got[0]},{x:PADC.x,y:PADC.y,r:280,done:st.got[1]},{x:ISL.x,y:ISL.y,r:320,done:st.got[2]},{x:(DX+MDX1)/2,y:(DY+MDY1)/2,r:440,done:st.got[3]},{x:CAVEMOUTH.x,y:CAVEMOUTH.y,r:170,done:!!st.underDone}]},
     mapIcons(g,P){let[x,y]=P(HEART.x,HEART.y);g.fillStyle=st.complete?'#ffd6f2':'#c8a8ff';g.beginPath();g.arc(x,y,5,0,7);g.fill();[x,y]=P(1700,215);g.fillStyle=st.open>=1?'#ffd79a':'#8a6ab8';g.beginPath();g.arc(x,y,5,0,7);g.fill()},
     mapNote(){return'South: Whispering Pines  ·  North: '+(st.open>=1?'Sunlit Falls (coming soon)':'Crystal Wall, sealed')},
     camTarget(){if(FIN.on)return{x:HEART.x,y:HEART.y-200};if(CINE.on&&CINE.t<4.6)return{x:1700,y:330,slow:true};return null},
@@ -1605,7 +1633,8 @@ function buildHollow(){
       // ---- place shards ----
       if(dist(F.x,F.y,HEART.x,HEART.y)<240&&!F.lock){let k=0;for(let i=0;i<4;i++){if(st.got[i]&&!st.placed[i]&&!placeQ.some(q=>q.i===i)){placeQ.push({i,t:-k*.45});k++}}}
       for(let j=placeQ.length-1;j>=0;j--){const q=placeQ[j];q.t+=dt;if(q.t>=.9){placeQ.splice(j,1);st.placed[q.i]=true;sfx('place',nPlaced()+1);const s=SOCK[q.i];burst(HEART.x+s[0],HEART.y+s[1],'rgba(255,190,240,1)',24,140);toast(`Shard set into the Heart Crystal (${nPlaced()}/4)`,2.8);save()}}
-      if(nPlaced()===4&&!st.bossBeat&&!BOSS&&!placeQ.length&&!DLG.on&&!F.lock&&dist(F.x,F.y,HEART.x,HEART.y)<300){dialog('Old Burrow the Mole',['Oh my whiskers! The Heart is calling something up from the deep...','The old Prism Golem is waking! It guarded the shards jealously. Make it crash into things, little fox, then strike its glowing core!'],()=>startBoss({name:'The Prism Golem',hp:20,r:50,speed:72,x:1700,y:1700,ax:1700,ay:1560,ar:440,attacks:['charge','ring','spikes','summon'],minion:'crawler',ringN:12,pc:'rgba(255,170,235,1)',proj:'crystal',spike:'crystal',draw:drawGolem,onWin:()=>{st.bossBeat=true;save();toast('The Prism Golem crumbles into glittering dust!',3.4)}}))}
+      if(nPlaced()===4&&!st.underDone&&!st.complete&&dist(F.x,F.y,HEART.x,HEART.y)<300)once('needGeode','The Heart flickers but will not wake. It needs the <b>Starlight Geode</b> from the cave mouth in the far southeast.',5);
+      if(nPlaced()===4&&(st.underDone||st.complete)&&!st.bossBeat&&!BOSS&&!placeQ.length&&!DLG.on&&!F.lock&&dist(F.x,F.y,HEART.x,HEART.y)<300){dialog('Old Burrow the Mole',['Oh my whiskers! The Heart is calling something up from the deep...','The old Prism Golem is waking! It guarded the shards jealously. Make it crash into things, little fox, then strike its glowing core!'],()=>startBoss({name:'The Prism Golem',hp:20,r:50,speed:72,x:1700,y:1700,ax:1700,ay:1560,ar:440,attacks:['charge','ring','spikes','summon'],minion:'crawler',ringN:12,pc:'rgba(255,170,235,1)',proj:'crystal',spike:'crystal',draw:drawGolem,onWin:()=>{st.bossBeat=true;save();toast('The Prism Golem crumbles into glittering dust!',3.4)}}))}
       if(nPlaced()===4&&st.bossBeat&&!BOSS&&!st.complete&&!FIN.on&&!placeQ.length&&!DLG.on){FIN.on=true;FIN.t=0;F.lock=true}
       if(FIN.on){FIN.t+=dt;if(FIN.t>.9&&!st.complete){st.complete=true;flash=1;sfx('win');burst(HEART.x,HEART.y-150,'rgba(255,255,255,1)',90,340);burst(HEART.x,HEART.y-150,'rgba(255,170,230,1)',60,260);burst(HEART.x,HEART.y-150,'rgba(170,235,255,1)',60,260);save()}
         if(FIN.t>2.4){FIN.on=false;dialog('Old Burrow the Mole',['Oh my whiskers... look at her shine! The Heart Crystal is whole!','Feel that warmth? Its light is melting the crystal wall to the north. Beyond it, they say, lie the Sunlit Falls.'],()=>{CINE.on=true;CINE.t=0;sfx('gate');document.body.classList.add('hideui')})}}
@@ -1633,6 +1662,9 @@ function buildHollow(){
     drawObj(g,o,dt){switch(o.type){
       case'heart':drawHeart(g,o,dt);break;
       case'mole':drawMole(g,o.x,o.y);break;
+      case'cavemouth':{const x=o.x,y=o.y;g.fillStyle='rgba(8,4,24,.45)';g.beginPath();g.ellipse(x,y+6,120,24,0,0,7);g.fill();const rg=g.createLinearGradient(0,y-150,0,y);rg.addColorStop(0,'#6a5a9a');rg.addColorStop(1,'#2e2450');g.fillStyle=rg;
+        g.beginPath();g.moveTo(x-110,y);g.quadraticCurveTo(x-110,y-140,x,y-150);g.quadraticCurveTo(x+110,y-140,x+110,y);g.closePath();g.fill();g.fillStyle='#0a0618';g.beginPath();g.moveTo(x-56,y);g.quadraticCurveTo(x-56,y-90,x,y-96);g.quadraticCurveTo(x+56,y-90,x+56,y);g.closePath();g.fill();
+        g.fillStyle=`rgba(200,160,255,${.2+.12*Math.sin(T*2)})`;g.beginPath();g.ellipse(x,y-20,40,24,0,0,7);g.fill();for(const[dx,h,c]of[[-90,60,'#ff9ae0'],[-74,40,'#8ae8ff'],[84,70,'#c8a8ff'],[100,44,'#ffd27a']]){g.fillStyle=c;g.beginPath();g.moveTo(x+dx-9,y-10);g.lineTo(x+dx,y-10-h);g.lineTo(x+dx+9,y-10);g.fill()}break}
       case'mirror':drawMirror(g,o);break;
       case'pillar':drawPillar(g,o);break;
       case'emitter':g.fillStyle='rgba(10,6,30,.4)';g.beginPath();g.ellipse(o.x,o.y,24,8,0,0,7);g.fill();g.fillStyle='#6a5a9a';g.fillRect(o.x-14,o.y-30,28,30);g.fillStyle='#fff3c8';g.beginPath();g.arc(o.x,o.y-36,11,0,7);g.fill();break;
@@ -1649,7 +1681,7 @@ function buildHollow(){
     lights(light){
       light(HEART.x,HEART.y-150,st.complete?640:360,st.complete?G_WHITE:G_VIO,st.complete?.6:.3);
       SOCK.forEach((s,i)=>{if(st.placed[i])light(HEART.x+s[0],HEART.y+s[1],160,G_PINK,.7)});
-      light(MOLE.x+14,MOLE.y-46,120,G_CYAN,.6);
+      light(MOLE.x+14,MOLE.y-46,120,G_CYAN,.6);light(CAVEMOUTH.x,CAVEMOUTH.y-40,220,G_VIO,.6);
       for(let i=0;i<beam.length-1;i++){const a=beam[i],b=beam[i+1],n=Math.max(1,Math.round(dist(a.x,a.y,b.x,b.y)/60));for(let k=0;k<=n;k++)light(lerp(a.x,b.x,k/n),lerp(a.y,b.y,k/n)-24,70,G_WARM,.35)}
       light(emit.x,emit.y-36,140,G_WARM,.7);light(recv.x,recv.y-30,100+120*recv.bloom,'rgba(255,230,170,1)',.3+.5*recv.bloom);
       for(const p of pads)light(p.x,p.y,80+60*p.glow,G_CYAN,.2+.5*p.glow);
@@ -1725,12 +1757,277 @@ function drawShard(g,x,y,s,rot){g.save();g.translate(x,y);g.scale(s,s);g.rotate(
   const gg=g.createLinearGradient(-10,-20,10,20);gg.addColorStop(0,'#ffd0f0');gg.addColorStop(.35,'#ffffff');gg.addColorStop(.65,'#b8f0ff');gg.addColorStop(1,'#d8b8ff');g.fillStyle=gg;
   g.beginPath();g.moveTo(0,-22);g.lineTo(10,-4);g.lineTo(6,18);g.lineTo(-6,18);g.lineTo(-10,-4);g.closePath();g.fill();
   g.strokeStyle='rgba(255,255,255,.8)';g.lineWidth=1.2;g.beginPath();g.moveTo(0,-22);g.lineTo(0,18);g.moveTo(-10,-4);g.lineTo(10,-4);g.stroke();g.restore()}
+const DIG={x:2470,y:2290},HOLLOWTREE={x:620,y:640},CAVEMOUTH={x:2960,y:2500};
+/* =====================================================================
+   UNDERGROUND WORLDS (one per chapter)
+   ===================================================================== */
+function caveBase(cfg){
+  rand=mulberry32(cfg.seed);
+  const W=cfg.W,H=cfg.H,TS=50,CW=W/TS,CH=H/TS,P=cfg.pal;
+  const solid=new Uint8Array(CW*CH).fill(1);
+  const set0=(tx,ty)=>{if(tx>0&&ty>0&&tx<CW-1&&ty<CH-1)solid[ty*CW+tx]=0};
+  const C={
+    ellipse(cx,cy,rx,ry){for(let ty=Math.floor((cy-ry-60)/TS);ty<=Math.ceil((cy+ry+60)/TS);ty++)for(let tx=Math.floor((cx-rx-60)/TS);tx<=Math.ceil((cx+rx+60)/TS);tx++){const x=(tx+.5)*TS,y=(ty+.5)*TS,n=(hash(tx,ty)-.5)*.3;if(((x-cx)/rx)**2+((y-cy)/ry)**2<1+n)set0(tx,ty)}},
+    path(pts,r){for(const q of smoothPath(pts,10))for(let ty=Math.floor((q[1]-r)/TS);ty<=Math.ceil((q[1]+r)/TS);ty++)for(let tx=Math.floor((q[0]-r)/TS);tx<=Math.ceil((q[0]+r)/TS);tx++){const x=(tx+.5)*TS,y=(ty+.5)*TS;if(dist(x,y,q[0],q[1])<r+(hash(tx,ty)-.5)*14)set0(tx,ty)}},
+    rect(x0,y0,x1,y1){for(let ty=Math.floor(y0/TS);ty<Math.ceil(y1/TS);ty++)for(let tx=Math.floor(x0/TS);tx<Math.ceil(x1/TS);tx++)set0(tx,ty)},
+    fill(x0,y0,x1,y1){for(let ty=Math.floor(y0/TS);ty<Math.ceil(y1/TS);ty++)for(let tx=Math.floor(x0/TS);tx<Math.ceil(x1/TS);tx++)if(tx>=0&&ty>=0&&tx<CW&&ty<CH)solid[ty*CW+tx]=1}
+  };
+  cfg.layout(C);
+  const isSolid=(x,y)=>{const tx=Math.floor(x/TS),ty=Math.floor(y/TS);if(tx<0||ty<0||tx>=CW||ty>=CH)return true;return!!solid[ty*CW+tx]};
+  const cols=ColGrid(W,H),sortables=[];
+  // decor + glow spots along walls
+  const glows=[];
+  for(let i=0;i<900;i++){const x=R(60,W-60),y=R(60,H-60);if(isSolid(x,y))continue;let nearWall=false;for(const[a,b]of[[40,0],[-40,0],[0,40],[0,-40]])if(isSolid(x+a,y+b))nearWall=true;
+    if(nearWall&&rand()<.55){const kind=pick(cfg.decor);sortables.push({type:'decor',kind,x,y,s:R(.7,1.3),ph:rand()*6,c1:P.decor1,c2:P.decor2,col:pick(P.flowers)});if(rand()<.18)glows.push({x,y,c:pick(P.glow),r:R(70,130),ph:rand()*6})}}
+  // ground
+  const ground=mk(W*GS,H*GS);
+  {const g=ground.getContext('2d');g.scale(GS,GS);
+    g.fillStyle=P.rock;g.fillRect(0,0,W,H);
+    for(let i=0;i<500;i++){g.fillStyle=pick(P.rockSpeck);g.globalAlpha=R(.2,.6);g.beginPath();g.arc(R(0,W),R(0,H),R(2,9),0,7);g.fill()}
+    g.globalAlpha=1;
+    for(let ty=0;ty<CH;ty++)for(let tx=0;tx<CW;tx++)if(!solid[ty*CW+tx]){g.fillStyle=P.floorEdge;g.beginPath();g.arc((tx+.5)*TS,(ty+.5)*TS,TS*.82,0,7);g.fill()}
+    for(let ty=0;ty<CH;ty++)for(let tx=0;tx<CW;tx++)if(!solid[ty*CW+tx]){g.fillStyle=P.floor;g.beginPath();g.arc((tx+.5)*TS,(ty+.5)*TS+4,TS*.62,0,7);g.fill()}
+    const blob=(x,y,r,c,a)=>{const gg=g.createRadialGradient(x,y,0,x,y,r);gg.addColorStop(0,c);gg.addColorStop(1,'rgba(0,0,0,0)');g.globalAlpha=a;g.fillStyle=gg;g.fillRect(x-r,y-r,r*2,r*2);g.globalAlpha=1};
+    for(let i=0;i<180;i++){const x=R(0,W),y=R(0,H);if(!isSolid(x,y))blob(x,y,R(60,180),pick(P.mott),R(.15,.35))}
+    for(let i=0;i<5000;i++){const x=R(0,W),y=R(0,H);if(isSolid(x,y))continue;g.fillStyle=pick(P.grit);g.globalAlpha=R(.25,.7);g.beginPath();g.ellipse(x,y,R(1,3.5),R(1,2.5),R(0,3),0,7);g.fill()}
+    g.globalAlpha=1;
+    // rim highlight on rock tops facing floor
+    for(let ty=1;ty<CH-1;ty++)for(let tx=1;tx<CW-1;tx++)if(solid[ty*CW+tx]&&!solid[(ty+1)*CW+tx]){g.fillStyle=P.rim;g.globalAlpha=.55;g.beginPath();g.ellipse((tx+.5)*TS,(ty+1)*TS-6,TS*.55,8,0,0,7);g.fill();g.globalAlpha=1}
+    if(cfg.paint)cfg.paint(g,blob)}
+  const MS=.16,mapC=mk(W*MS,H*MS);{const g=mapC.getContext('2d');g.drawImage(ground,0,0,mapC.width,mapC.height);g.globalCompositeOperation='screen';g.fillStyle='rgba(90,80,120,.35)';g.fillRect(0,0,mapC.width,mapC.height);g.globalCompositeOperation='source-over'}
+  const area={W,H,MS,ground,mapC,cols,sortables,trees:[],fireflies:makeFireflies(cfg.ff||50,[],W,H).filter(f=>!isSolid(f.x,f.y)),mists:makeMists(10,W,H),
+    GW:Math.ceil(W/100),GH:Math.ceil(H/100),enemies:[],hflowers:[],pickups:[],trees:[],
+    titleCam:()=>({x:cfg.entry.x,y:cfg.entry.y}),camTarget:()=>null,cine:()=>false,
+    blocked(x,y,r){const ax=r*.85,ay=r*.5;if(isSolid(x-ax,y-ay)||isSolid(x+ax,y-ay)||isSolid(x-ax,y+ay)||isSolid(x+ax,y+ay))return true;return cfg.blockedX?cfg.blockedX(x,y,r):false},
+    felixLight(){return 340},
+    screenFx(g,vw,vh){const gr=g.createRadialGradient(vw/2,vh/2-20,120,vw/2,vh/2,Math.max(vw,vh)*.65);gr.addColorStop(0,'rgba(4,2,12,0)');gr.addColorStop(1,'rgba(4,2,12,.42)');g.fillStyle=gr;g.fillRect(0,0,vw,vh)},
+    afterLoad(){},onLoad(){},onRespawn(){},
+    caveLights(light){for(const s of glows)light(s.x,s.y,s.r,s.c,.45+.15*Math.sin(T*1.5+s.ph))},
+    caveBlooms(bloom){for(const s of glows)bloom(s.x,s.y-6,14,s.c,.55+.2*Math.sin(T*1.5+s.ph))}};
+  // exit ladder
+  sortables.push({type:'exitroots',x:cfg.exit.x,y:cfg.exit.y,r:0});
+  return{area,C,isSolid,TS,cols,sortables,W,H};
+}
+function drawExitRoots(g,o,col){g.save();g.translate(o.x,o.y);
+  const gr=g.createRadialGradient(0,-60,10,0,-60,120);gr.addColorStop(0,'rgba(255,245,220,.35)');gr.addColorStop(1,'rgba(255,245,220,0)');g.fillStyle=gr;g.fillRect(-120,-200,240,240);
+  g.strokeStyle=col||'#6a4a5a';g.lineWidth=5;g.lineCap='round';for(const s of[-1,1]){g.beginPath();g.moveTo(s*14,0);g.lineTo(s*12,-120);g.stroke()}
+  g.lineWidth=3;for(let k=0;k<6;k++){g.beginPath();g.moveTo(-14,-12-k*19);g.lineTo(14,-14-k*19);g.stroke()}
+  g.fillStyle='rgba(20,10,30,.4)';g.beginPath();g.ellipse(0,2,26,7,0,0,7);g.fill();g.restore()}
+const DIRT_DRAW=(g,o)=>{if(o.gone)return;g.save();g.translate(o.x,o.y);g.fillStyle='rgba(10,5,20,.4)';g.beginPath();g.ellipse(0,6,46,13,0,0,7);g.fill();
+  const gg=g.createRadialGradient(-10,-24,6,0,-14,48);gg.addColorStop(0,'#9a7460');gg.addColorStop(1,'#4a2e2e');g.fillStyle=gg;g.beginPath();g.ellipse(0,-14,44,30,0,0,7);g.fill();
+  g.fillStyle='#b8927a';for(let k=0;k<7;k++){g.beginPath();g.arc(Math.cos(k*1.7)*26,-14+Math.sin(k*2.3)*16,3+(k%3),0,7);g.fill()}
+  if(o.dig>0){g.fillStyle='rgba(255,240,220,.6)';g.fillRect(-26,-56,52*o.dig,5)}g.restore()};
+
+/* ---------------- CH1: Rootway Burrows ---------------- */
+function buildBurrow(){
+  const st=S.burrow,sg=S.glade;
+  const ENTRY={x:320,y:1480},EXIT={x:225,y:1460},GX=1000,GY=520,GT=70,GC=7,GR=9,START={x:1245,y:1218},ALTAR={x:2080,y:400};
+  const B=caveBase({seed:4401,W:2400,H:1800,entry:ENTRY,exit:EXIT,ff:40,decor:['fern','bluecap','grass','flower'],
+    pal:{rock:'#1c1218',rockSpeck:['#2e2028','#3a2a30','#24161c'],floor:'#5e4448',floorEdge:'#3e2c32',mott:['#5a3e40','#3e2a34','#5e4a3a'],grit:['#7a5a50','#a07a68','#5a4040'],rim:'#5a4048',decor1:'#7a8a5a',decor2:'#c8e0a0',flowers:['#ffd0a0','#ffb0c8','#d0f0a0'],glow:[G_PINK,G_FIRE,'rgba(255,200,140,1)']},
+    layout(C){C.ellipse(ENTRY.x,ENTRY.y,180,140);C.path([[ENTRY.x,ENTRY.y],[650,1360],[900,1440],[1100,1330],[1245,1290]],58);
+      C.path([[650,1360],[560,1000],[460,700]],52);C.ellipse(440,640,160,120);
+      C.ellipse(1245,1250,160,110);C.rect(GX,GY,GX+GC*GT,GY+GR*GT);C.ellipse(1245,400,190,115);
+      C.path([[1400,380],[1700,300],[1950,380]],55);C.ellipse(ALTAR.x,ALTAR.y+20,190,150);
+      C.path([[2090,560],[2160,900],[2060,1180]],52);C.ellipse(2050,1260,150,110);
+      C.fill(GX-60,GY,GX,GY+GR*GT);C.fill(GX+GC*GT,GY,GX+GC*GT+60,GY+GR*GT)},
+    paint(g,blob){for(let r=0;r<GR;r++)for(let c=0;c<GC;c++){const x=GX+c*GT,y=GY+r*GT;g.fillStyle=(r+c)%2?'#3e3036':'#46363c';g.fillRect(x+2,y+2,GT-4,GT-4);g.strokeStyle='rgba(20,10,20,.5)';g.lineWidth=2;g.strokeRect(x+2,y+2,GT-4,GT-4)}
+      g.fillStyle='#8a7a6a';g.beginPath();g.ellipse(START.x,START.y,40,24,0,0,7);g.fill();g.strokeStyle='rgba(200,255,170,.6)';g.lineWidth=2;for(let k=1;k<3;k++){g.beginPath();g.ellipse(START.x,START.y,k*12,k*7,0,0,7);g.stroke()}
+      blob(ALTAR.x,ALTAR.y,220,'#6a4a3a',.4)},
+    entryPt:ENTRY});
+  const A2=B.area;
+  // safe glowworm path
+  const path=[];{let c=Math.floor(rand()*GC),last=0;for(let r=GR-1;r>=0;r--){path.push([c,r]);if(r>0&&rand()<.8){let d=rand()<.5?-1:1;if(c+d<0||c+d>=GC||d===-last)d=-d;const n=1+Math.floor(rand()*3);for(let k=0;k<n;k++){const nc=c+d;if(nc<0||nc>=GC)break;c=nc;path.push([c,r])}last=d}else last=0}}
+  const SAFE=new Set(path.map(([c,r])=>c+','+r));
+  const PZ={mode:'idle',t:0,crumbs:new Set(),fall:0};
+  // dig plugs
+  const DIRTS=[{x:1040,y:1365},{x:570,y:1050}].map((p,i)=>{const o={type:'dirt',i,x:p.x,y:p.y,r:st.dug[i]?0:46,dig:0,gone:!!st.dug[i]};B.sortables.push(o);B.cols.add(o);return o});
+  const relic={type:'relic',x:ALTAR.x,y:ALTAR.y};B.sortables.push(relic);
+  B.sortables.push({type:'altar',x:ALTAR.x,y:ALTAR.y+6});
+  let digT=0,digging=null;
+  const nearDirt=()=>DIRTS.find(d=>!d.gone&&dist(F.x,F.y,d.x,d.y)<95);
+  Object.assign(A2,{id:'burrow',name:'Rootway Burrows',chapter:'Underground',ffCol:G_FIRE,fall:'dust',pip:'pet',
+    amb:[104,88,112],chords:[[110,164.8,220,277.2],[98,146.8,196,246.9],[123.5,164.8,207.7,277.2]],pent:[440,493.9,554.4,659.3,740],
+    landmarks:[{n:'Root Ladder',x:ENTRY.x,y:ENTRY.y+170},{n:'Glowworm Hall',x:1245,y:GY+GR*GT+180},{n:'Root Altar',x:ALTAR.x,y:ALTAR.y+190},{n:'Hidden Nook',x:440,y:800}],
+    spawn:ENTRY,respawn:{x:ENTRY.x+60,y:ENTRY.y},restName:'the root ladder',
+    enemies:[[700,1380],[460,640],[2050,1230],[2120,1300],[1500,330]].map(p=>makeEnemy('thorn',p[0],p[1],{leash:350})),
+    hflowers:[[420,600],[2000,1300],[1150,1330]].map(p=>({x:p[0],y:p[1],ready:true,t:0})),
+    onEnter(){once('burrowIn','Rootway Burrows. The Moonstone\'s roots run through here. Find the <b>Heartroot</b>.',4.5)},
+    onLoad(){DIRTS.forEach((d,i)=>{if(st.dug[i]){d.gone=true;d.r=0}})},
+    onRespawn(){PZ.crumbs.clear();PZ.mode='idle';PZ.fall=0;F.scale=1;F.alpha=1},
+    interact(){if(dist(F.x,F.y,EXIT.x,EXIT.y)<90){goArea('glade',DIG.x,DIG.y+70);return}const d=nearDirt();if(d&&!digging){digging=d;digT=0;F.lock=true;sfx('thud')}},
+    prompt(){if(dist(F.x,F.y,EXIT.x,EXIT.y)<90)return'to climb out';if(nearDirt())return'to dig through the soft earth';return null},
+    objective(){return st.got?{text:'You have the Heartroot! Climb out and bring it to the Moonstone.',n:1,total:1}:{text:'Find the Heartroot deep in the Rootway Burrows.',n:0,total:1}},
+    hints(){return[{x:1245,y:GY+300,r:330,done:st.got}]},
+    mapIcons(g,P){const[x,y]=P(EXIT.x,EXIT.y);g.fillStyle='#ffe0b0';g.beginPath();g.arc(x,y,5,0,7);g.fill()},
+    mapNote(){return'Up the root ladder: Moonpetal Glade'},
+    update(dt){
+      if(digging){digT+=dt;digging.dig=digT/.8;if(rand()<.6)burst(digging.x+R(-20,20),digging.y-10,'rgba(170,130,100,1)',2,90);if(digT>.8){digging.gone=true;digging.r=0;st.dug[digging.i]=true;burst(digging.x,digging.y-14,'rgba(190,150,120,1)',30,160);sfx('pop');digging=null;F.lock=false;save()}}
+      if(S.phase!=='play')return;
+      const nd=nearDirt();if(nd)once('digtip','Soft earth! Press <b>E</b> (or Talk) to dig through it.',3.5);
+      // glowworm floor
+      const inGrid=F.x>GX&&F.x<GX+GC*GT&&F.y>GY&&F.y<GY+GR*GT;
+      if(dist(F.x,F.y,START.x,START.y)<34&&PZ.mode==='idle'&&!st.got&&!F.lock){PZ.mode='show';PZ.t=0;F.lock=true;toast('Watch the glowworms... remember their path!',2.6);sfx('echo',2)}
+      if(dist(F.x,F.y,START.x,START.y)>60&&PZ.mode==='done')PZ.mode='idle';
+      if(PZ.mode==='show'){PZ.t+=dt;const k=Math.floor(PZ.t/.2);if(k<path.length&&PZ.t-k*.2<dt+.001)sfx('echo',k%4);if(PZ.t>path.length*.2+1.4){PZ.mode='done';F.lock=false;toast('Now cross! Only the glowworms\' path is safe.',2.4)}}
+      if(dist(F.x,F.y,1245,1300)<220&&!st.got)once('hall','The Glowworm Hall. Most of this floor is hollow! Step on the round stone to see the safe path.',5);
+      if(PZ.fall>0){PZ.fall+=dt;F.scale=Math.max(.05,1-PZ.fall*1.6);F.alpha=Math.max(0,1-PZ.fall*1.3);if(PZ.fall>.7&&!fade.on){fadeTo(()=>{F.x=START.x;F.y=START.y+40;F.vx=F.vy=0;F.scale=1;F.alpha=1;PZ.fall=0;F.lock=false;PZ.crumbs.clear();PZ.mode='idle'})}}
+      else if(inGrid&&!F.lock){const c=Math.floor((F.x-GX)/GT),r=Math.floor((F.y-GY)/GT),k=c+','+r;if(SAFE.has(k)){if(!PZ.crumbs.has(k)){PZ.crumbs.add(k);sfx('mush',PZ.crumbs.size%6)}}else{PZ.fall=.001;F.lock=true;sfx('caught');toast('The floor crumbles! Nix tumbles back to the start.',2.6);hurtFelix(1,F.x,F.y,true);if(CB.dead)PZ.fall=0}}
+      if(!st.got&&dist(F.x,F.y,relic.x,relic.y)<44){st.got=true;sg.underDone=true;sfx('lantern');burst(relic.x,relic.y-30,'rgba(255,200,170,1)',40,200);toast('The <b>Heartroot</b>! Climb back up and bring it to the Moonstone.',4);save()}},
+    drawUnder(g){
+      const show=PZ.mode==='show'?PZ.t:-1;
+      path.forEach(([c,r],i)=>{let a=0;if(show>=0){const on=show-i*.2;if(on>0)a=Math.min(1,on*4)*(show>path.length*.2+.8?Math.max(0,1-(show-path.length*.2-.8)/.6):1)}
+        if(PZ.crumbs.has(c+','+r))a=Math.max(a,.32);if(a<=0)return;const x=GX+c*GT+GT/2,y=GY+r*GT+GT/2;g.globalAlpha=a;g.fillStyle='rgba(200,255,160,.35)';g.fillRect(x-GT/2+4,y-GT/2+4,GT-8,GT-8);
+        g.fillStyle='#e8ffb0';for(let k=0;k<3;k++){g.beginPath();g.arc(x+Math.cos(T*2+k*2+i)*14,y+Math.sin(T*3+k)*10,2.6,0,7);g.fill()}g.globalAlpha=1})},
+    drawObj(g,o){switch(o.type){
+      case'exitroots':drawExitRoots(g,o,'#7a5a4a');break;
+      case'dirt':DIRT_DRAW(g,o);break;
+      case'altar':g.fillStyle='rgba(10,5,20,.4)';g.beginPath();g.ellipse(o.x,o.y,44,12,0,0,7);g.fill();g.fillStyle='#6a4a40';g.beginPath();g.ellipse(o.x,o.y-6,38,14,0,0,7);g.fill();g.strokeStyle='#8a6a50';g.lineWidth=5;for(const s of[-1,1]){g.beginPath();g.moveTo(o.x+s*30,o.y-6);g.quadraticCurveTo(o.x+s*50,o.y-40,o.x+s*20,o.y-70);g.stroke()}break;
+      case'relic':if(!st.got){const y=o.y-46+Math.sin(T*2)*4;drawHeartroot(g,o.x,y)}break}},
+    drawTop(){},
+    lights(light){A2.caveLights(light);light(START.x,START.y,110,G_FIRE,.5);if(!st.got)light(relic.x,relic.y-40,240,'rgba(255,190,150,1)',.8);light(EXIT.x,EXIT.y-80,200,'rgba(255,240,210,1)',.6);
+      if(PZ.mode==='show')path.forEach(([c,r],i)=>{if(PZ.t>i*.2)light(GX+c*GT+GT/2,GY+r*GT+GT/2,90,G_FIRE,.6)});PZ.crumbs.forEach(k=>{const[c,r]=k.split(',').map(Number);light(GX+c*GT+GT/2,GY+r*GT+GT/2,60,G_FIRE,.25)})},
+    blooms(bloom){A2.caveBlooms(bloom);if(!st.got)bloom(relic.x,relic.y-46,50,'rgba(255,190,150,1)',.7)}
+  });
+  A2._dbg={path,GX,GY,GT,START,ALTAR,DIRTS};
+  return A2;
+}
+function drawHeartroot(g,x,y){g.save();g.translate(x,y);g.rotate(Math.sin(T*1.3)*.1);
+  const gg=g.createRadialGradient(-4,-4,2,0,0,16);gg.addColorStop(0,'#fff0e0');gg.addColorStop(.5,'#ff9ab0');gg.addColorStop(1,'#a04a6a');g.fillStyle=gg;
+  g.beginPath();g.moveTo(0,12);g.bezierCurveTo(-18,0,-12,-16,0,-8);g.bezierCurveTo(12,-16,18,0,0,12);g.fill();
+  g.strokeStyle='#8a5a4a';g.lineWidth=2.5;g.lineCap='round';for(const s of[-1,1]){g.beginPath();g.moveTo(0,10);g.quadraticCurveTo(s*10,20,s*16,26);g.stroke()}g.beginPath();g.moveTo(0,12);g.lineTo(0,28);g.stroke();g.restore()}
+
+/* ---------------- CH2: Frostroot Hollow ---------------- */
+function buildIceCave(){
+  const st=S.icecave,sp=S.pines;
+  const ENTRY={x:320,y:1700},EXIT={x:225,y:1690},HEARTH={x:420,y:1640},BLOOM={x:2380,y:1700};
+  const BR=[{x:1150,y:1600},{x:1050,y:640},{x:2050,y:600},{x:2090,y:1540}];
+  const WIND=[{x0:1080,y0:1020,x1:1230,y1:1420,off:0},{x0:2110,y0:930,x1:2290,y1:1260,off:2.1},{x0:1480,y0:1560,x1:1660,y1:1740,off:1.2}];
+  const B=caveBase({seed:5512,W:2600,H:2000,entry:ENTRY,exit:EXIT,ff:40,decor:['crystal','bluecap','grass'],
+    pal:{rock:'#121a2c',rockSpeck:['#1e2a44','#26344e','#18223a'],floor:'#4a5c80',floorEdge:'#2e3c5a',mott:['#4a5e86','#33476a','#5a6a9a'],grit:['#a8c8e8','#dfefff','#7a98c0'],rim:'#6a86b8',decor1:'#6aa0c0',decor2:'#c8f0ff',flowers:['#d8f0ff','#ffffff'],glow:[G_ICE,G_CYAN,G_VIO]},
+    layout(C){C.ellipse(ENTRY.x,ENTRY.y,190,150);C.path([[ENTRY.x,ENTRY.y],[700,1600],[1000,1650],[1150,1600]],60);C.ellipse(BR[0].x,BR[0].y,150,115);
+      C.path([[1150,1480],[1155,1100],[1100,800]],62);C.ellipse(BR[1].x,BR[1].y,160,115);
+      C.path([[1200,600],[1600,500],[1900,560]],58);C.ellipse(BR[2].x,BR[2].y,160,125);
+      C.path([[2100,720],[2200,1100],[2150,1400]],62);C.ellipse(BR[3].x,BR[3].y,160,115);
+      C.path([[1290,1600],[1700,1650],[1960,1580]],58);
+      C.path([[2230,1580],[2300,1650]],56);C.ellipse(BLOOM.x,BLOOM.y,140,130)},
+    paint(g,blob){blob(BLOOM.x,BLOOM.y,180,'#b8e0ff',.3);for(const w of WIND){g.strokeStyle='rgba(220,240,255,.18)';g.lineWidth=2;for(let k=0;k<8;k++){const y=w.y0+(w.y1-w.y0)*k/8;g.beginPath();g.moveTo(w.x0,y);g.lineTo(w.x1,y+20);g.stroke()}}}});
+  const A2=B.area;
+  const ICEW=[];for(let y=1560;y<=1720;y+=36){const o={type:'icewall',x:2262,y,r:st.got||st.lit.every(Boolean)?0:34};ICEW.push(B.cols.add(o));B.sortables.push(o)}
+  const hearthO={type:'brazier',x:HEARTH.x,y:HEARTH.y,r:22,hearth:true};B.sortables.push(hearthO);B.cols.add(hearthO);
+  const brO=BR.map((p,i)=>{const o={type:'brazier',i,x:p.x,y:p.y,r:22};B.sortables.push(o);B.cols.add(o);return o});
+  const bloomO={type:'frostbloom',x:BLOOM.x,y:BLOOM.y};B.sortables.push(bloomO);
+  let flame=0,melt=st.lit.every(Boolean)?1:0;const FLAME=7;
+  const windOn=w=>((T+w.off)%5.2)<2.2,windWarn=w=>!windOn(w)&&((T+w.off)%5.2)>4.4;
+  Object.assign(A2,{id:'icecave',name:'Frostroot Hollow',chapter:'Underground',ffCol:G_ICE,fall:'snow',pip:'lan',
+    amb:[92,106,150],chords:[[146.8,174.6,220,293.7],[130.8,164.8,196,261.6],[116.5,146.8,174.6,233.1]],pent:[587.3,659.3,784,880,1046.5],
+    landmarks:[{n:'Hollow Exit',x:ENTRY.x,y:ENTRY.y+180},{n:'Frostbloom Grotto',x:BLOOM.x,y:BLOOM.y+170},{n:'Windy Tunnels',x:1700,y:1800}],
+    spawn:ENTRY,respawn:{x:ENTRY.x+80,y:ENTRY.y},restName:'the hollow entrance',
+    enemies:[[1150,1200],[1650,520],[2170,1100],[1700,1650]].map(p=>makeEnemy('sprite',p[0],p[1],{leash:420})),
+    hflowers:[[600,1640],[1050,560],[2100,1640]].map(p=>({x:p[0],y:p[1],ready:true,t:0})),
+    felixLight(){return flame>0?400:340},
+    onEnter(){once('iceIn','Frostroot Hollow. Four frozen braziers guard the <b>Frostbloom</b>. Carry a flame from the hearth to light them!',5)},
+    onLoad(){if(st.lit.every(Boolean)||st.got){melt=1;for(const w of ICEW)w.r=0}},
+    onRespawn(){flame=0},
+    interact(){if(dist(F.x,F.y,EXIT.x,EXIT.y)<90)goArea('pines',HOLLOWTREE.x,HOLLOWTREE.y+80)},
+    prompt(){return dist(F.x,F.y,EXIT.x,EXIT.y)<90?'to climb out':null},
+    objective(){const n=st.lit.filter(Boolean).length;return st.got?{text:'You have the Frostbloom! Climb out and return to the Great Pine.',n:4,total:4}:n===4?{text:'The ice wall melted! Claim the Frostbloom.',n:4,total:4}:{text:`Light the frozen braziers (${n}/4). Your flame only lasts a few seconds.`,n,total:4}},
+    hints(){return[{x:BLOOM.x,y:BLOOM.y,r:200,done:st.got}]},
+    mapIcons(g,P){const[x,y]=P(EXIT.x,EXIT.y);g.fillStyle='#ffe0b0';g.beginPath();g.arc(x,y,5,0,7);g.fill();BR.forEach((b,i)=>{const[bx,by]=P(b.x,b.y);g.fillStyle=st.lit[i]?'#ffb060':'#6a7aa0';g.beginPath();g.arc(bx,by,4,0,7);g.fill()})},
+    mapNote(){return'Up through the hollow: Whispering Pines'},
+    update(dt){
+      if(melt<1&&st.lit.every(Boolean)){melt=Math.min(1,melt+dt/1.5);if(melt>=1){for(const w of ICEW)w.r=0;burst(2262,1640,'rgba(200,240,255,1)',40,200);sfx('door');toast('The ice wall melts away!',2.6)}}
+      if(S.phase!=='play')return;
+      if(flame>0){flame-=dt;if(rand()<.5)parts.push({x:F.x+R(-6,6),y:F.y-60,vx:R(-10,10),vy:-R(30,60),life:0,max:.5,col:'rgba(255,170,90,1)',s:R(1.5,3)});if(flame<=0){flame=0;toast('Your flame fizzled out.',1.6);sfx('splash')}}
+      if(dist(F.x,F.y,HEARTH.x,HEARTH.y)<70&&flame<FLAME-.2){if(flame<=0)sfx('heal');flame=FLAME}
+      brO.forEach((b,i)=>{if(dist(F.x,F.y,b.x,b.y)<70){if(st.lit[i]){if(flame<FLAME-.2){if(flame<=0)sfx('heal');flame=FLAME}}else if(flame>0){st.lit[i]=true;flame=FLAME;sfx('place',i);burst(b.x,b.y-40,'rgba(255,170,90,1)',30,170);toast(`Brazier lit! (${st.lit.filter(Boolean).length}/4) Lit braziers can relight your flame.`,3);save()}}});
+      for(const w of WIND){if(windOn(w)&&flame>0&&F.x>w.x0&&F.x<w.x1&&F.y>w.y0&&F.y<w.y1){flame=0;toast('A gust of icy wind blew out your flame! Time your run between gusts.',3);sfx('splash')}}
+      if(CB.inv>1.05&&flame>0){flame=0;toast('Ouch! The hit knocked your flame out.',2)}
+      if(!st.got&&melt>=1&&dist(F.x,F.y,bloomO.x,bloomO.y)<46){st.got=true;sp.underDone=true;sfx('lantern');burst(bloomO.x,bloomO.y-30,'rgba(200,240,255,1)',40,200);toast('The <b>Frostbloom</b>! Climb out and bring it to the Great Pine.',4);save()}},
+    drawUnder(g){for(const w of WIND){const on=windOn(w),wr=windWarn(w);if(!on&&!wr)continue;g.globalAlpha=on?.5:.18;g.strokeStyle='#e8f6ff';g.lineWidth=2;for(let k=0;k<14;k++){const y=w.y0+((k*37+T*(on?160:40))%(w.y1-w.y0)),x=w.x0+((k*53+T*(on?420:90))%(w.x1-w.x0));g.beginPath();g.moveTo(x,y);g.lineTo(x+28,y+6);g.stroke()}g.globalAlpha=1}},
+    drawObj(g,o){switch(o.type){
+      case'exitroots':drawExitRoots(g,o,'#5a6a8a');break;
+      case'brazier':{const lit=o.hearth||st.lit[o.i];g.fillStyle='rgba(5,5,20,.45)';g.beginPath();g.ellipse(o.x,o.y,30,9,0,0,7);g.fill();g.fillStyle='#4a5878';g.fillRect(o.x-8,o.y-34,16,34);g.fillStyle='#6a7aa0';g.beginPath();g.ellipse(o.x,o.y-36,26,10,0,0,7);g.fill();
+        if(lit){for(let k=0;k<3;k++){const fh=26+Math.sin(T*12+k*2+o.x)*6-k*6;g.fillStyle=['#ff8a3a','#ffc070','#fff2c0'][k];g.beginPath();g.moveTo(o.x-14+k*4,o.y-38);g.quadraticCurveTo(o.x+Math.sin(T*8+k)*5,o.y-38-fh-8,o.x+14-k*4,o.y-38);g.fill()}}
+        else{g.fillStyle='#c8e8ff';g.beginPath();g.moveTo(o.x-16,o.y-38);g.lineTo(o.x-6,o.y-56);g.lineTo(o.x+2,o.y-40);g.lineTo(o.x+10,o.y-52);g.lineTo(o.x+16,o.y-38);g.fill()}break}
+      case'icewall':if(melt<1){g.save();g.globalAlpha=1-melt;const gg=g.createLinearGradient(o.x-30,0,o.x+30,0);gg.addColorStop(0,'#e8f8ff');gg.addColorStop(1,'#7ab0e0');g.fillStyle=gg;g.beginPath();g.moveTo(o.x-28,o.y);g.lineTo(o.x-20,o.y-70);g.lineTo(o.x,o.y-90);g.lineTo(o.x+22,o.y-66);g.lineTo(o.x+28,o.y);g.fill();g.restore()}break;
+      case'frostbloom':if(!st.got){const y=o.y-40+Math.sin(T*2)*4;g.save();g.translate(o.x,y);for(let k=0;k<6;k++){g.rotate(Math.PI/3);g.fillStyle='rgba(220,245,255,.95)';g.beginPath();g.ellipse(0,-11,5,11,0,0,7);g.fill()}g.fillStyle='#9fe0ff';g.beginPath();g.arc(0,0,5,0,7);g.fill();g.restore()}break}},
+    drawTop(g){if(flame>0){const x=F.x,y=F.y-64;for(let k=0;k<3;k++){const fh=14+Math.sin(T*14+k)*3-k*3;g.fillStyle=['#ff8a3a','#ffc070','#fff2c0'][k];g.beginPath();g.moveTo(x-7+k*2,y);g.quadraticCurveTo(x+Math.sin(T*9)*3,y-fh,x+7-k*2,y);g.fill()}
+      g.strokeStyle='rgba(30,20,40,.5)';g.lineWidth=4;g.beginPath();g.arc(x,y+8,13,0,7);g.stroke();g.strokeStyle=flame<2.5?'#ff8a6a':'#ffd27a';g.lineWidth=3;g.beginPath();g.arc(x,y+8,13,-Math.PI/2,-Math.PI/2+flame/FLAME*Math.PI*2);g.stroke()}},
+    lights(light){A2.caveLights(light);light(HEARTH.x,HEARTH.y-40,280,G_FLAME,.8);brO.forEach((b,i)=>{if(st.lit[i])light(b.x,b.y-40,260,G_FLAME,.75)});if(flame>0)light(F.x,F.y-60,220,G_FLAME,.7);if(!st.got)light(bloomO.x,bloomO.y-40,220,G_ICE,.7);light(EXIT.x,EXIT.y-80,200,'rgba(255,240,210,1)',.6)},
+    blooms(bloom){A2.caveBlooms(bloom);bloom(HEARTH.x,HEARTH.y-46,40,G_FLAME,.9);brO.forEach((b,i)=>{if(st.lit[i])bloom(b.x,b.y-46,40,G_FLAME,.9)});if(flame>0)bloom(F.x,F.y-70,26,G_FLAME,.9);if(!st.got&&melt>=1)bloom(bloomO.x,bloomO.y-40,50,G_ICE,.7)}
+  });
+  A2._dbg={BR,HEARTH,BLOOM,WIND,get flame(){return flame}};
+  return A2;
+}
+
+/* ---------------- CH3: Geode Depths ---------------- */
+function buildGeode(){
+  const st=S.geode,sh=S.hollow;
+  const ENTRY={x:1300,y:1800},EXIT={x:1230,y:1830},HUBC={x:1300,y:1320},GEO={x:1350,y:430};
+  const KEYS=[{x:380,y:1160,c:'#ff8ad8',g:'rgba(255,140,220,1)',n:'pink'},{x:640,y:520,c:'#8ae8ff',g:'rgba(140,230,255,1)',n:'cyan'},{x:2240,y:1020,c:'#ffd27a',g:'rgba(255,215,130,1)',n:'gold'}];
+  const DOORS=[{x:960,y:1010,k:0,vert:false},{x:1720,y:1220,k:1,vert:true},{x:1300,y:900,k:2,vert:false}];
+  const B=caveBase({seed:6623,W:2600,H:2000,entry:ENTRY,exit:EXIT,ff:50,decor:['crystal','crystal','bluecap','grass'],
+    pal:{rock:'#160e26',rockSpeck:['#2a1a44','#3a2458','#221438'],floor:'#4a3c6c',floorEdge:'#30244c',mott:['#4e3a7a','#38306a','#5a3a6a'],grit:['#c8a8ff','#ffd0f0','#9fe0ff'],rim:'#7a5ab0',decor1:'#7a68b8',decor2:'#e0c8ff',flowers:['#ffc6f0','#c8f4ff','#fff1c0'],glow:[G_PINK,G_CYAN,G_VIO]},
+    layout(C){C.ellipse(ENTRY.x,ENTRY.y,190,130);C.path([[ENTRY.x,ENTRY.y],[1300,1550],[HUBC.x,HUBC.y]],62);C.ellipse(HUBC.x,HUBC.y,260,190);
+      C.path([[1060,1300],[700,1250],[520,1200]],56);C.ellipse(440,1180,180,150);
+      C.path([[1150,1160],[960,1010],[860,760],[720,600]],56);C.ellipse(660,540,200,150);
+      C.path([[1540,1250],[1720,1220],[1950,1150]],56);C.ellipse(2200,1060,190,150);
+      C.path([[1300,1140],[1300,900],[1330,640]],60);C.ellipse(GEO.x,GEO.y+20,220,150)},
+    paint(g,blob){blob(GEO.x,GEO.y,260,'#a07ae0',.35);blob(HUBC.x,HUBC.y,300,'#5a4a90',.4)}});
+  const A2=B.area;
+  const doorO=DOORS.map((d,i)=>{const cs=[];for(let k=-2;k<=2;k++){const o={x:d.x+(d.vert?0:k*36),y:d.y+(d.vert?k*36:0),r:st.used[i]?0:32};cs.push(B.cols.add(o))}const o={type:'cdoor',i,x:d.x,y:d.y+(d.vert?80:10),d,cs,open:st.used[i]?1:0};B.sortables.push(o);return o});
+  const keyO=KEYS.map((k,i)=>{const o={type:'ckey',i,x:k.x,y:k.y};B.sortables.push(o);return o});
+  const geoO={type:'geode',x:GEO.x,y:GEO.y};B.sortables.push(geoO);
+  const ESC={on:false,t:0,rock:0};const ESC_T=24;
+  Object.assign(A2,{id:'geode',name:'Geode Depths',chapter:'Underground',ffCol:G_PINK,fall:'spark',pip:'shard',
+    amb:[100,84,140],chords:[[123.5,155.6,185,246.9],[110,138.6,164.8,220],[130.8,164.8,207.7,261.6]],pent:[622.3,740,830.6,987.8,1244.5],
+    landmarks:[{n:'Cave Mouth',x:ENTRY.x,y:ENTRY.y+150},{n:'Crystal Crossroads',x:HUBC.x,y:HUBC.y+220},{n:'Pink Den',x:440,y:1350},{n:'Bat Roost',x:660,y:720},{n:'Gold Vault',x:2200,y:1240},{n:'Geode Heart',x:GEO.x,y:GEO.y+190}],
+    spawn:ENTRY,respawn:{x:ENTRY.x+60,y:ENTRY.y-40},restName:'the cave mouth',
+    enemies:[[420,1150],[520,1240],[340,1250],[2150,1080]].map(p=>makeEnemy('crawler',p[0],p[1],{leash:380})).concat([[640,520],[760,600],[560,620],[2260,980]].map(p=>makeEnemy('bat',p[0],p[1],{leash:380}))),
+    hflowers:[[1150,1420],[1450,1420],[700,1300],[2100,1180]].map(p=>({x:p[0],y:p[1],ready:true,t:0})),
+    onEnter(){once('geoIn','Geode Depths. Crystal doors only open for the matching key crystal. The <b>Starlight Geode</b> waits at the heart.',5)},
+    onLoad(){doorO.forEach((o,i)=>{if(st.used[i]){o.open=1;for(const c of o.cs)c.r=0}})},
+    onRespawn(){if(ESC.on){ESC.on=false;st.got=false;toast('The Starlight Geode rolled back to its pedestal.',3)}},
+    interact(){if(dist(F.x,F.y,EXIT.x,EXIT.y)<90)goArea('hollow',CAVEMOUTH.x,CAVEMOUTH.y+80)},
+    prompt(){return dist(F.x,F.y,EXIT.x,EXIT.y)<90?'to climb out':null},
+    objective(){const n=st.keys.filter(Boolean).length;if(ESC.on)return{text:`The cave is collapsing! Escape to the cave mouth! (${Math.max(0,Math.ceil(ESC_T-ESC.t))}s)`,n:4,total:4};
+      if(st.got)return{text:'You escaped with the Starlight Geode! Bring it to the Heart Crystal.',n:4,total:4};return{text:`Find the key crystals (${n}/3) and reach the Geode Heart.`,n,total:4}},
+    hints(){return[{x:KEYS[0].x,y:KEYS[0].y,r:200,done:st.keys[0]},{x:KEYS[1].x,y:KEYS[1].y,r:200,done:st.keys[1]},{x:KEYS[2].x,y:KEYS[2].y,r:200,done:st.keys[2]},{x:GEO.x,y:GEO.y,r:220,done:st.got}]},
+    mapIcons(g,P){const[x,y]=P(EXIT.x,EXIT.y);g.fillStyle='#ffe0b0';g.beginPath();g.arc(x,y,5,0,7);g.fill();doorO.forEach(o=>{const[dx,dy]=P(o.d.x,o.d.y);g.fillStyle=o.open>=1?'rgba(255,255,255,.3)':KEYS[o.d.k].c;g.fillRect(dx-5,dy-5,10,10)})},
+    mapNote(){return'Cave mouth: Crystal Hollow'},
+    update(dt){
+      for(const o of doorO){if(st.used[o.i]&&o.open<1){o.open=Math.min(1,o.open+dt/1);if(o.open>=1)for(const c of o.cs)c.r=0}}
+      if(S.phase!=='play')return;
+      keyO.forEach((o,i)=>{if(!st.keys[i]&&dist(F.x,F.y,o.x,o.y)<44){st.keys[i]=true;sfx('lantern');burst(o.x,o.y-30,KEYS[i].g,30,180);toast(`You found the <b>${KEYS[i].n} key crystal</b>! It will open the ${KEYS[i].n} door.`,3.4);save()}});
+      doorO.forEach(o=>{if(!st.used[o.i]&&st.keys[o.d.k]&&dist(F.x,F.y,o.d.x,o.d.y)<130){st.used[o.i]=true;sfx('door');burst(o.d.x,o.d.y-30,KEYS[o.d.k].g,36,200);toast('The crystal door chimes and dissolves!',2.4);save()}
+        else if(!st.used[o.i]&&!st.keys[o.d.k]&&dist(F.x,F.y,o.d.x,o.d.y)<120)once('door'+o.i,`A ${KEYS[o.d.k].n} crystal door. You need the ${KEYS[o.d.k].n} key crystal.`,3)});
+      if(ESC.cool&&dist(F.x,F.y,geoO.x,geoO.y)>100)ESC.cool=false;
+      if(!st.got&&!sh.underDone&&!ESC.cool&&dist(F.x,F.y,geoO.x,geoO.y)<46){st.got=true;ESC.on=true;ESC.t=0;ESC.rock=0;sfx('boss');flash=.4;toast('The Starlight Geode! The cave is collapsing... RUN to the cave mouth!',3.4);save()}
+      if(ESC.on){ESC.t+=dt;ESC.rock-=dt;if(ESC.rock<=0){ESC.rock=.55;for(let k=0;k<2;k++){const a=rand()*7,d=k?R(30,140):R(0,40);zones.push({x:F.x+Math.cos(a)*d+F.vx*.35,y:F.y+Math.sin(a)*d*.7+F.vy*.35,r:46,t:0,warn:.8,act:.3,col:'rgba(220,190,255,1)',kind:'crystal'})}if(rand()<.5)sfx('thud')}
+        if(Math.floor(T*6)%3===0&&rand()<.3)burst(F.x+R(-300,300),F.y-R(150,300),'rgba(180,160,220,1)',3,60);
+        if(dist(F.x,F.y,EXIT.x,EXIT.y)<140){ESC.on=false;sh.underDone=true;sfx('win');flash=.5;toast('You made it out with the <b>Starlight Geode</b>! Climb up and bring it to the Heart Crystal.',4.5);save()}
+        else if(ESC.t>ESC_T){ESC.on=false;st.got=false;ESC.cool=true;zones.length=0;sfx('caught');toast('The tunnel caves in! The geode tumbles back to its pedestal...',3.4);hurtFelix(1,F.x,F.y,true);if(!CB.dead){F.lock=true;fadeTo(()=>{F.x=GEO.x;F.y=GEO.y+120;F.vx=F.vy=0;F.lock=false})}save()}}},
+    drawUnder(){},
+    drawObj(g,o){switch(o.type){
+      case'exitroots':drawExitRoots(g,o,'#6a5a8a');break;
+      case'cdoor':if(o.open<1){const k=KEYS[o.d.k];g.save();g.globalAlpha=1-o.open;for(const c of o.cs){const h=70+hash(c.x|0,c.y|0)*40;const gg=g.createLinearGradient(c.x-16,0,c.x+16,0);gg.addColorStop(0,'#ffffff');gg.addColorStop(1,k.c);g.fillStyle=gg;g.beginPath();g.moveTo(c.x-18,c.y);g.lineTo(c.x-14,c.y-h);g.lineTo(c.x,c.y-h-18);g.lineTo(c.x+14,c.y-h);g.lineTo(c.x+18,c.y);g.fill()}g.restore()}break;
+      case'ckey':if(!st.keys[o.i]){const k=KEYS[o.i],y=o.y-34+Math.sin(T*2+o.i)*4;g.save();g.translate(o.x,y);g.rotate(Math.sin(T+o.i)*.2);g.fillStyle=k.c;g.beginPath();g.moveTo(0,-18);g.lineTo(9,0);g.lineTo(0,18);g.lineTo(-9,0);g.closePath();g.fill();g.fillStyle='rgba(255,255,255,.7)';g.beginPath();g.moveTo(0,-18);g.lineTo(-9,0);g.lineTo(0,2);g.fill();g.restore()}break;
+      case'geode':g.fillStyle='rgba(10,5,25,.45)';g.beginPath();g.ellipse(o.x,o.y+4,44,12,0,0,7);g.fill();g.fillStyle='#4a3a6a';g.beginPath();g.ellipse(o.x,o.y-4,38,14,0,0,7);g.fill();
+        if(!st.got){const y=o.y-44+Math.sin(T*2)*4;g.fillStyle='#3a2a5a';g.beginPath();g.arc(o.x,y,22,0,7);g.fill();g.fillStyle='#e8d0ff';for(let k=0;k<8;k++){const a=k/8*7+T*.3;g.beginPath();g.moveTo(o.x+Math.cos(a)*6,y+Math.sin(a)*6);g.lineTo(o.x+Math.cos(a+.2)*18,y+Math.sin(a+.2)*18);g.lineTo(o.x+Math.cos(a-.2)*18,y+Math.sin(a-.2)*18);g.fill()}}break}},
+    drawTop(){},
+    lights(light){A2.caveLights(light);keyO.forEach((o,i)=>{if(!st.keys[i])light(o.x,o.y-34,200,KEYS[i].g,.75)});doorO.forEach(o=>{if(o.open<1)light(o.d.x,o.d.y-40,180,KEYS[o.d.k].g,.5*(1-o.open))});if(!st.got)light(geoO.x,geoO.y-44,280,G_VIO,.85);light(EXIT.x,EXIT.y-80,220,'rgba(255,240,210,1)',ESC.on?.95:.6)},
+    blooms(bloom){A2.caveBlooms(bloom);keyO.forEach((o,i)=>{if(!st.keys[i])bloom(o.x,o.y-34,40,KEYS[i].g,.8)});if(!st.got)bloom(geoO.x,geoO.y-44,60,G_VIO,.7);if(ESC.on)bloom(EXIT.x,EXIT.y-60,90,'rgba(255,240,210,1)',.7)}
+  });
+  A2._dbg={KEYS,DOORS,GEO,EXIT,ESC};
+  return A2;
+}
 /* =====================================================================
    ENGINE: areas, input, save, transitions, update, render, map
    ===================================================================== */
 AREAS.glade=buildGlade();
 AREAS.pines=buildPines();
 AREAS.hollow=buildHollow();
+AREAS.burrow=buildBurrow();AREAS.icecave=buildIceCave();AREAS.geode=buildGeode();
 for(const k in AREAS){const a=AREAS[k];a.pickups=a.pickups||[];a.hflowers=a.hflowers||[];a.enemies=a.enemies||[];a.explored=new Uint8Array(a.GW*a.GH);a.fogC=mk(a.GW,a.GH);a.fogG=a.fogC.getContext('2d')}
 A=AREAS.glade;F.x=A.spawn.x;F.y=A.spawn.y;cam.x=F.x;cam.y=F.y-120;
 rand=mulberry32(Date.now()&0xffff);
@@ -1763,11 +2060,11 @@ if((('ontouchstart' in window)||navigator.maxTouchPoints>0)&&matchMedia('(pointe
 
 /* ---------- save ---------- */
 const KEY='felix-forest-v2',OLDKEY='felix-moonpetal-v1';
-function save(){try{const d={area:A.id,x:F.x,y:F.y,seen:S.seen,glade:S.glade,pines:Object.assign({},S.pines,{boulders:AREAS.pines.getBoulders()}),hollow:S.hollow,ex:{}};for(const k in AREAS)d.ex[k]=Array.from(AREAS[k].explored).join('');localStorage.setItem(KEY,JSON.stringify(d))}catch(e){}}
+function save(){try{const d={area:A.id,x:F.x,y:F.y,seen:S.seen,glade:S.glade,pines:Object.assign({},S.pines,{boulders:AREAS.pines.getBoulders()}),hollow:S.hollow,burrow:S.burrow,icecave:S.icecave,geode:S.geode,ex:{}};for(const k in AREAS)d.ex[k]=Array.from(AREAS[k].explored).join('');localStorage.setItem(KEY,JSON.stringify(d))}catch(e){}}
 function load(){try{let d=JSON.parse(localStorage.getItem(KEY));
   if(!d){const o=JSON.parse(localStorage.getItem(OLDKEY));if(o)d={area:'glade',x:o.x,y:o.y,seen:o.seen||{},glade:{talked:o.talked,petals:o.petals,mush:o.mush,complete:o.complete,gate:o.gate>=1?1:0},ex:{glade:o.ex}}}
   if(!d)return false;
-  S.seen=d.seen||{};Object.assign(S.glade,d.glade||{});Object.assign(S.pines,d.pines||{});Object.assign(S.hollow,d.hollow||{});
+  S.seen=d.seen||{};Object.assign(S.glade,d.glade||{});Object.assign(S.pines,d.pines||{});Object.assign(S.hollow,d.hollow||{});Object.assign(S.burrow,d.burrow||{});Object.assign(S.icecave,d.icecave||{});Object.assign(S.geode,d.geode||{});
   for(const k in AREAS){const s=d.ex&&d.ex[k];if(s)for(let i=0;i<AREAS[k].explored.length;i++)AREAS[k].explored[i]=s[i]==='1'?1:0}
   for(const k in AREAS)AREAS[k].onLoad();
   A=AREAS[d.area]||AREAS.glade;F.x=d.x;F.y=d.y;if(A.afterLoad)A.afterLoad();
@@ -1906,9 +2203,10 @@ function render(dt){
   ctx.globalCompositeOperation='lighter';
   for(const m of motes){m.y-=m.v*dt;m.x+=Math.sin(T*.5+m.ph)*.0004;if(m.y<-.02){m.y=1.02;m.x=Math.random()}ctx.globalAlpha=.35+.35*Math.sin(T*2+m.ph);ctx.drawImage(glow('rgba(255,240,220,1)'),m.x*vw-m.s*3,m.y*vh-m.s*3,m.s*6,m.s*6)}
   ctx.globalCompositeOperation='source-over';
-  const snow=A.fall==='snow',spark=A.fall==='spark';
+  const snow=A.fall==='snow',spark=A.fall==='spark',dust=A.fall==='dust';
   for(const f of falls){f.y+=f.v*dt*(snow?.8:1);f.x+=Math.sin(T+f.r)*.0006;f.r+=f.vr*dt;if(f.y>1.05){f.y=-.05;f.x=Math.random()}
-    if(spark){ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.5+.4*Math.sin(T*3+f.r*4);ctx.drawImage(glow(['rgba(255,170,230,1)','rgba(160,235,255,1)','rgba(255,235,170,1)'][(Math.abs(f.r*10)|0)%3]),f.x*vw-f.s*1.6,(1-f.y)*vh-f.s*1.6,f.s*3.2,f.s*3.2);ctx.globalCompositeOperation='source-over'}
+    if(dust){ctx.globalAlpha=.45;ctx.fillStyle='#d8b890';ctx.beginPath();ctx.arc(f.x*vw,f.y*vh,f.s*.3,0,7);ctx.fill()}
+    else if(spark){ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.5+.4*Math.sin(T*3+f.r*4);ctx.drawImage(glow(['rgba(255,170,230,1)','rgba(160,235,255,1)','rgba(255,235,170,1)'][(Math.abs(f.r*10)|0)%3]),f.x*vw-f.s*1.6,(1-f.y)*vh-f.s*1.6,f.s*3.2,f.s*3.2);ctx.globalCompositeOperation='source-over'}
     else if(snow){ctx.globalAlpha=.7;ctx.fillStyle='#f2f7ff';ctx.beginPath();ctx.arc(f.x*vw,f.y*vh,f.s*.45,0,7);ctx.fill()}
     else{ctx.save();ctx.translate(f.x*vw,f.y*vh);ctx.rotate(f.r);ctx.globalAlpha=.55;ctx.fillStyle='#ffc6de';ctx.beginPath();ctx.ellipse(0,0,f.s,f.s*.5,0,0,7);ctx.fill();ctx.restore()}}
   ctx.globalAlpha=1;
